@@ -549,7 +549,7 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
   function renderOtherCell(p) {
     const amt = p.其他金額 || 0;
     const note = p.其他備註 || "";
-    const label = amt ? money(amt) : "—";
+    const label = amt ? money(amt) : "";
     const titleAttr = note ? ` title="${note.replace(/"/g, "&quot;")}"` : "";
     return `<button type="button" class="adj${note ? " has-note" : ""}" data-edit="other" data-who="${p.名字}"${titleAttr}>${label}</button>`;
   }
@@ -695,14 +695,13 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
 
     const internHead = `<tr class="cols"><td>職稱</td><td>姓名</td><td>時數</td><td>時薪<button type="button" class="adj" data-edit="internWage">(${internWage()})</button></td><td>合計</td><td>還款</td><td>其他</td><td>實發</td><td>總欠款</td></tr>`;
     const internRows = (s.實習 || []).map((p) =>
-      `<tr><td><button type="button" class="adj" data-edit="title" data-who="${p.名字}">${p.職稱 || "—"}</button></td><td>${p.虛擬 ? `<button type="button" class="adj" data-edit="internName" data-who="${p.名字}">${p.名字}</button>` : `<button type="button" class="who" data-name="${p.名字}">${p.名字}</button>`}</td><td><button type="button" class="adj" data-edit="hours" data-who="${p.名字}">${p.時數.toFixed(1)}</button></td><td>${p.時薪金額 == null ? "0" : money(p.時薪金額)}</td><td>${p.合計 == null ? '<span class="dim">算法未定</span>' : money(p.合計)}</td><td>${showLoan(p) ? money(p.還款 || 0) : ""}</td><td>${renderOtherCell(p)}</td><td>${p.實發 == null ? "" : money(p.實發)}</td><td>${showLoan(p) ? money(p.總欠款) : ""}</td></tr>`
+      `<tr><td><button type="button" class="adj" data-edit="title" data-who="${p.名字}">${p.職稱 || "—"}</button></td><td>${p.虛擬 ? `<button type="button" class="adj" data-edit="internName" data-who="${p.名字}">${p.名字}</button>` : `<button type="button" class="who" data-name="${p.名字}">${p.名字}</button>`}</td><td><button type="button" class="adj" data-edit="hours" data-who="${p.名字}">${p.時數.toFixed(1)}</button></td><td>${p.時薪金額 == null ? "0" : money(p.時薪金額)}</td><td>${p.合計 == null ? "" : money(p.合計)}</td><td>${showLoan(p) ? money(p.還款 || 0) : ""}</td><td>${renderOtherCell(p)}</td><td>${p.實發 == null ? "" : money(p.實發)}</td><td>${showLoan(p) ? money(p.總欠款) : ""}</td></tr>`
     ).join("") || `<tr><td colspan="9" class="dim">本週無實習</td></tr>`;
-    const internAddRow = `<tr><td colspan="9"><button type="button" class="adj" data-edit="addIntern">＋ 新增人員</button></td></tr>`;
 
     $("foot").innerHTML = `
       <div class="gframe">
         <span class="frame-title">Interns</span>
-        <table class="mini">${internHead}${internRows}${internAddRow}</table>
+        <table class="mini">${internHead}${internRows}</table>
       </div>
       <div class="gframe">
         <span class="frame-title">Owner</span>
@@ -805,14 +804,6 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     const kind = adj.dataset.edit;
     if (kind === "other") {
       openOther(adj.dataset.who);
-    } else if (kind === "addIntern") {
-      saved.額外實習 = saved.額外實習 || [];
-      let base = "新成員", n = base, i = 1;
-      const taken = (name) => DATA.實習.some((p) => p.名字 === name) || saved.額外實習.includes(name);
-      while (taken(n)) n = base + (i++);
-      saved.額外實習.push(n);
-      saved.職稱 = saved.職稱 || {};
-      persist();
     } else if (kind === "internName") {
       const name = adj.dataset.who;
       startEdit(adj, name, (v) => {
