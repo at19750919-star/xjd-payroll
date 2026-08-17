@@ -363,7 +363,7 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
 <script>
 (() => {
   // ═══ Apps Script API(以試算表擁有者身分執行,老闆開頁面不用登入任何 Google 帳號) ═══
-  const API_URL = "https://script.google.com/macros/s/AKfycby-2FSL3UZep8f5XBMF123qnx_wEaIsQz_hmrrgkAQKpzaa3Ehpme84AT4r_98AI-I0Cg/exec";
+  const API_URL = "https://script.google.com/macros/s/AKfycbyvzJMc8HBTt-WhJTRN_pDQbwpzHuC9AOz7pQy1a1qrwJ1kgAGi4GHvkjAH6Zmwm1GxjQ/exec";
   const API_SECRET = "RHPUSm2WDM2KurGfKmucWqNzxqCp-wyd";
 
   const $ = (id) => document.getElementById(id);
@@ -375,25 +375,40 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
   let DATA, STORE, saved;
 
   // ---------- Apps Script API(全部前端直呼,不用登入) ----------
+  async function parseApiResponse(res) {
+    const text = await res.text();
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new Error(`伺服器回應不是預期格式(可能是暫時性問題),請重試。原始回應開頭:${text.slice(0, 60)}`);
+    }
+  }
+  async function withRetry(fn) {
+    try { return await fn(); } catch (err) { return await fn(); } // 失敗重試一次,吃掉間歇性的 Apps Script 錯誤頁
+  }
   async function apiGet(op, params) {
-    const u = new URL(API_URL);
-    u.searchParams.set("op", op);
-    u.searchParams.set("secret", API_SECRET);
-    Object.entries(params || {}).forEach(([k, v]) => u.searchParams.set(k, v));
-    const res = await fetch(u.toString());
-    const j = await res.json();
-    if (j.error) throw new Error(j.error);
-    return j;
+    return withRetry(async () => {
+      const u = new URL(API_URL);
+      u.searchParams.set("op", op);
+      u.searchParams.set("secret", API_SECRET);
+      Object.entries(params || {}).forEach(([k, v]) => u.searchParams.set(k, v));
+      const res = await fetch(u.toString());
+      const j = await parseApiResponse(res);
+      if (j.error) throw new Error(j.error);
+      return j;
+    });
   }
   async function apiPost(body) {
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" }, // 避免觸發 CORS 預檢,Apps Script 不支援
-      body: JSON.stringify({ ...body, secret: API_SECRET }),
+    return withRetry(async () => {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" }, // 避免觸發 CORS 預檢,Apps Script 不支援
+        body: JSON.stringify({ ...body, secret: API_SECRET }),
+      });
+      const j = await parseApiResponse(res);
+      if (j.error) throw new Error(j.error);
+      return j;
     });
-    const j = await res.json();
-    if (j.error) throw new Error(j.error);
-    return j;
   }
 
   async function listTabs() {
@@ -444,6 +459,11 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     if (!saved.實習) saved.實習 = { 獎金率: 0 };
     if (!saved.對場主) saved.對場主 = { 業績率: CONFIG.對場主.業績率 };
     if (!saved.借支) saved.借支 = {};
+    if (!saved.額外實習) saved.額外實習 = [];
+    saved.額外實習.forEach((name) => {
+      if (!DATA.實習.some((p) => p.名字 === name)) DATA.實習.push({ 名字: name, 時數: 0, 虛擬: true });
+    });
+    DATA.實習.forEach((p) => { if (saved.額外實習.includes(p.名字)) p.虛擬 = true; });
     applyHours(saved);
     applyTitles(saved);
     paint();
@@ -639,17 +659,16 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
         </tfoot>
       </table>`;
 
-    const internRows = (s.實習 || []).length
-      ? `<tr class="cols"><td>職稱</td><td>姓名</td><td>時數</td><td>時薪<button type="button" class="adj" data-edit="internWage">(${internWage()})</button></td><td>合計</td><td>還款</td><td>實發</td><td>總欠款</td></tr>` +
-        s.實習.map((p) =>
-          `<tr><td><button type="button" class="adj" data-edit="title" data-who="${p.名字}">${p.職稱 || "—"}</button></td><td><button type="button" class="who" data-name="${p.名字}">${p.名字}</button></td><td><button type="button" class="adj" data-edit="hours" data-who="${p.名字}">${p.時數.toFixed(1)}</button></td><td>${p.時薪金額 == null ? "0" : money(p.時薪金額)}</td><td>${p.合計 == null ? '<span class="dim">算法未定</span>' : money(p.合計)}</td><td>${showLoan(p) ? money(p.還款 || 0) : ""}</td><td>${p.實發 == null ? "" : money(p.實發)}</td><td>${showLoan(p) ? money(p.總欠款) : ""}</td></tr>`
-        ).join("")
-      : `<tr><td colspan="8" class="dim">本週無實習</td></tr>`;
+    const internHead = `<tr class="cols"><td>職稱</td><td>姓名</td><td>時數</td><td>時薪<button type="button" class="adj" data-edit="internWage">(${internWage()})</button></td><td>合計</td><td>還款</td><td>實發</td><td>總欠款</td></tr>`;
+    const internRows = (s.實習 || []).map((p) =>
+      `<tr><td><button type="button" class="adj" data-edit="title" data-who="${p.名字}">${p.職稱 || "—"}</button></td><td>${p.虛擬 ? `<button type="button" class="adj" data-edit="internName" data-who="${p.名字}">${p.名字}</button>` : `<button type="button" class="who" data-name="${p.名字}">${p.名字}</button>`}</td><td><button type="button" class="adj" data-edit="hours" data-who="${p.名字}">${p.時數.toFixed(1)}</button></td><td>${p.時薪金額 == null ? "0" : money(p.時薪金額)}</td><td>${p.合計 == null ? '<span class="dim">算法未定</span>' : money(p.合計)}</td><td>${showLoan(p) ? money(p.還款 || 0) : ""}</td><td>${p.實發 == null ? "" : money(p.實發)}</td><td>${showLoan(p) ? money(p.總欠款) : ""}</td></tr>`
+    ).join("") || `<tr><td colspan="8" class="dim">本週無實習</td></tr>`;
+    const internAddRow = `<tr><td colspan="8"><button type="button" class="adj" data-edit="addIntern">＋ 新增人員</button></td></tr>`;
 
     $("foot").innerHTML = `
       <div class="gframe">
         <span class="frame-title">Interns</span>
-        <table class="mini">${internRows}</table>
+        <table class="mini">${internHead}${internRows}${internAddRow}</table>
       </div>
       <div class="gframe">
         <span class="frame-title">Owner</span>
@@ -729,7 +748,26 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     const adj = e.target.closest("[data-edit]");
     if (!adj) return;
     const kind = adj.dataset.edit;
-    if (kind === "title") {
+    if (kind === "addIntern") {
+      saved.額外實習 = saved.額外實習 || [];
+      let base = "新成員", n = base, i = 1;
+      const taken = (name) => DATA.實習.some((p) => p.名字 === name) || saved.額外實習.includes(name);
+      while (taken(n)) n = base + (i++);
+      saved.額外實習.push(n);
+      saved.職稱 = saved.職稱 || {};
+      persist();
+    } else if (kind === "internName") {
+      const name = adj.dataset.who;
+      startEdit(adj, name, (v) => {
+        if (!v || v === name) { paint(); return; }
+        const p = DATA.實習.find((x) => x.名字 === name);
+        if (p) p.名字 = v;
+        saved.額外實習 = (saved.額外實習 || []).map((n) => (n === name ? v : n));
+        if (saved.職稱 && name in saved.職稱) { saved.職稱[v] = saved.職稱[name]; delete saved.職稱[name]; }
+        if (saved.時數 && name in saved.時數) { saved.時數[v] = saved.時數[name]; delete saved.時數[name]; }
+        persist();
+      }, true);
+    } else if (kind === "title") {
       const name = adj.dataset.who;
       const p = (DATA.實習 || []).find((x) => x.名字 === name);
       if (!p) return;
