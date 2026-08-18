@@ -791,6 +791,12 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     if (Math.abs(frac - 0.5) < 1e-9) return sign * (f % 2 === 0 ? f : f + 1);
     return sign * Math.round(abs);
   }
+  function internWageChargedToCompany(tab) {
+    const start = String((CONFIG.實習 && CONFIG.實習.向公司收起始週) || "0817").replace(/\D/g, "");
+    const current = String(tab || "").replace(/\D/g, "");
+    if (!start || !current) return false;
+    return Number(current) >= Number(start);
+  }
   function money(n) {
     if (n == null || Number.isNaN(n)) return "算法未定";
     return (n < 0 ? "−" : "") + Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
@@ -876,7 +882,13 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     const 還款小計 = 正式.reduce((s, p) => s + p.還款, 0)
       + 實習.reduce((s, p) => s + (p.還款 || 0), 0);
     const 對場主_業績 = pyRound(總營業額 * cfg.對場主.業績率);
-    const 對場主_荷官薪資 = pyRound(正式總時數 * cfg.時薪);
+    const 對場主_正式薪資 = pyRound(正式總時數 * cfg.時薪);
+    const 實習荷官時薪小計 = 實習
+      .filter((p) => !ADMIN_NAMES.has(normalizedName(p.名字)))
+      .reduce((sum, p) => sum + (p.時薪金額 || 0), 0);
+    const 實習向公司收 = internWageChargedToCompany(DATA.tab);
+    const 對場主_實習薪資 = 實習向公司收 ? 實習荷官時薪小計 : 0;
+    const 對場主_荷官薪資 = 對場主_正式薪資 + 對場主_實習薪資;
     const 對場主_合計 = 對場主_業績 + 對場主_荷官薪資;
     const 每日營運 = (DATA.每日營運 || []).map((row) => {
       const 勝負 = pyRound(-(Number(row.勝負原值) || 0));
@@ -902,7 +914,8 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
       實習未定: 實習.some((p) => p.合計 == null),
       行政未定: !!DATA.行政未定,
       每日營運,
-      對場主_業績, 對場主_荷官薪資, 對場主_合計,
+      對場主_業績, 對場主_正式薪資, 對場主_實習薪資, 對場主_荷官薪資, 對場主_合計,
+      實習向公司收,
       付_實習,
       淨額: 對場主_合計 - 付_正式荷官 - 付_實習,
     };
@@ -1004,7 +1017,8 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
           <span class="frame-title">Owner</span>
           <table class="mini">
             <tr><td>業績<button type="button" class="adj" data-edit="rev">(${(s.config.對場主.業績率 * 100).toFixed(0)}%)</button></td><td>${money(s.對場主_業績)}</td></tr>
-            <tr><td>荷官薪資</td><td>${money(s.對場主_荷官薪資)}</td></tr>
+            <tr><td>荷官薪資</td><td>${money(s.對場主_正式薪資)}</td></tr>
+            ${s.實習向公司收 ? `<tr><td>實習薪資</td><td>${money(s.對場主_實習薪資)}</td></tr>` : ""}
             <tr class="sum"><td>合計應收</td><td>${money(s.對場主_合計)}</td></tr>
           </table>
         </div>
