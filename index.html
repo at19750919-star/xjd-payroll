@@ -696,6 +696,7 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
       return;
     }
     moveForcedInterns(DATA);
+    ensureAdminPeople(DATA);
     STORE = "payroll-rules-" + tab;
     const remote = SETTINGS_ROWS[tab] || null;
     saved = Object.assign(defaultRules(CONFIG), loadSavedLocal() || {}, remote || {});
@@ -735,6 +736,15 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     moved.forEach((person) => {
       if (!data.實習.some((p) => normalizedName(p.名字) === normalizedName(person.名字))) {
         data.實習.unshift(person);
+      }
+    });
+  }
+
+  function ensureAdminPeople(data) {
+    data.實習 = Array.isArray(data.實習) ? data.實習 : [];
+    ["阿生", "AT"].forEach((name) => {
+      if (!data.實習.some((p) => normalizedName(p.名字) === normalizedName(name))) {
+        data.實習.push({ 名字: name, 時數: 0, 虛擬: true, 行政: true });
       }
     });
   }
