@@ -139,16 +139,21 @@ h1 small{
 .save-flag{font-size:11px;letter-spacing:.1em;color:var(--txt-dim);white-space:nowrap}
 .save-flag.err{color:var(--banker)}
 
-/* ============ 牌桌 ============ */
+/* ============ 週薪主表 + 每日營運側欄 ============ */
+.workspace{
+  flex:1;min-height:0;margin-top:16px;
+  display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:18px;
+}
+.workspace .felt{padding-left:28px;padding-right:28px}
 .pit{
-  margin-top:16px;flex:1;min-height:0;position:relative;
+  min-height:0;height:100%;position:relative;
   padding:12px 14px;
   border-radius:120px 120px 120px 120px / 68px 68px 68px 68px;
   background:linear-gradient(180deg,#0c0803 0%,#2b1e08 20%,#241905 46%,#0e0a04 100%);
   box-shadow:0 24px 50px rgba(0,0,0,.6), inset 0 1px 0 rgba(244,223,164,.12);
 }
 .felt{
-  position:relative;height:100%;
+  position:relative;height:100%;display:flex;flex-direction:column;
   border-radius:104px 104px 104px 104px / 56px 56px 56px 56px;
   background:
     radial-gradient(ellipse 120% 100% at 50% 0%, rgba(255,255,255,.06), transparent 40%),
@@ -162,7 +167,7 @@ h1 small{
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.65' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .35 0'/%3E%3C/filter%3E%3Crect width='90' height='90' filter='url(%23f)'/%3E%3C/svg%3E");
 }
 .felt-head{
-  display:flex;align-items:center;justify-content:center;gap:20px;
+  display:flex;align-items:center;justify-content:center;gap:20px;flex:none;
   margin-bottom:5px;position:relative;z-index:1;
 }
 .felt-head .arc-text{
@@ -171,6 +176,8 @@ h1 small{
 }
 .felt-head .rule{flex:1;max-width:180px;height:1px;
   background:linear-gradient(90deg,transparent,rgba(244,223,164,.5),transparent)}
+#book{flex:1;min-height:0;position:relative;z-index:1}
+#book > table.pay{height:100%}
 
 .msg{
   position:relative;z-index:1;height:100%;display:flex;flex-direction:column;
@@ -182,7 +189,7 @@ h1 small{
 
 table.pay{width:100%;border-collapse:separate;border-spacing:0;position:relative;z-index:1}
 table.pay th{
-  font-family:var(--serif);font-weight:600;font-size:11px;letter-spacing:.3em;text-indent:.3em;
+  font-family:var(--serif);font-weight:600;font-size:16px;letter-spacing:.3em;text-indent:.3em;
   color:var(--gold-1);text-align:right;padding:8px 10px;
   border-bottom:1px solid #c9a25a;white-space:nowrap;
 }
@@ -194,7 +201,21 @@ table.pay td{
   font-family:var(--disp);font-weight:500;font-size:15px;
   font-variant-numeric:tabular-nums;
 }
-table.pay td.name{font-family:var(--sans);font-weight:500;font-size:14px;letter-spacing:.04em}
+table.pay td.name{font-family:var(--sans);font-weight:500;font-size:18px;letter-spacing:.04em}
+table.pay th.day-col,table.pay td.day-col{
+  width:38px;padding-left:4px;padding-right:4px;text-align:center;
+}
+table.pay td.day-col.has-shift{position:relative;cursor:help}
+table.pay td.day-col.has-shift::after{
+  content:attr(data-shift);position:absolute;z-index:20;left:50%;top:calc(100% + 7px);
+  transform:translateX(-50%);min-width:max-content;padding:8px 11px;border-radius:4px;
+  border:1px solid rgba(201,162,90,.65);background:#f4f0e5;color:#17201e;
+  box-shadow:0 7px 18px rgba(0,0,0,.35);font:500 13px/1.35 var(--sans);
+  letter-spacing:.02em;opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .12s ease,visibility .12s ease;
+}
+table.pay td.day-col.has-shift:hover::after,
+table.pay td.day-col.has-shift:focus-within::after{opacity:1;visibility:visible}
 table.pay tbody tr:hover td{background:rgba(212,176,106,.09)}
 table.pay td.total{color:var(--gold-1);font-weight:700;font-size:17px;
   text-shadow:0 0 10px rgba(244,223,164,.25)}
@@ -203,13 +224,64 @@ table.pay tfoot td{
   font-weight:700;padding-top:12px;
 }
 table.pay tfoot td.total{font-size:19px}
+table.pay .intern-head th,table.pay .admin-head th{padding-top:22px}
+table.pay .formal-subtotal td{
+  border-bottom:0;border-top:1px solid rgba(244,223,164,.45);
+  font-weight:700;padding-top:12px;
+}
+table.pay .formal-subtotal td.total{font-size:19px}
+table.pay .intern-subtotal td{
+  border-bottom:0;border-top:1px solid rgba(244,223,164,.45);
+  font-weight:700;padding-top:12px;
+}
+table.pay .intern-subtotal td.total{font-size:19px}
+table.pay .formal-subtotal td:first-child,
+table.pay .intern-subtotal td:first-child{
+  font-size:13px;font-weight:600;color:rgba(232,228,216,.68);
+}
+
+.rail{min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr);align-content:stretch;gap:18px}
+.daily-card{min-height:0;padding:20px 18px 14px;overflow:visible}
+.daily-title{
+  margin:2px 0 10px;font-family:var(--serif);font-size:15px;font-weight:700;
+  letter-spacing:.28em;color:var(--gold-1);
+}
+.daily-table{width:100%;border-collapse:separate;border-spacing:0}
+.daily-table th{
+  padding:7px 5px;text-align:right;border-bottom:1px solid rgba(201,162,90,.58);
+  font-family:var(--serif);font-size:14px;font-weight:600;letter-spacing:.12em;color:var(--gold-2);
+}
+.daily-table th:first-child,.daily-table td:first-child{text-align:left}
+.daily-table th small{font:500 9px var(--sans);letter-spacing:0;color:var(--txt-dim);margin-left:2px}
+.daily-table td{
+  padding:9px 5px;text-align:right;border-bottom:1px solid rgba(244,223,164,.08);
+  font-family:var(--disp);font-size:16px;font-variant-numeric:tabular-nums;color:var(--txt);
+}
+.daily-table .day-label{font-family:var(--sans);font-weight:500}
+.daily-table .op-weekday{margin-left:7px;font-size:10px;color:var(--txt-dim)}
+.daily-table .wash{color:var(--txt-dim)}
+.daily-table .neg{color:var(--banker)}
+.daily-table tfoot td{
+  padding-top:11px;border-bottom:0;border-top:1px solid rgba(244,223,164,.45);
+  color:var(--gold-1);font-weight:700;
+}
+.daily-table tfoot td:first-child{font-family:var(--serif);letter-spacing:.08em}
+.rail-bottom{min-height:0;display:grid;grid-template-columns:1fr;grid-template-rows:1fr 1fr;gap:18px}
+.rail-bottom .gframe{min-height:144px;padding:15px 16px 12px}
+.rail-bottom .mini{height:100%}
+.rail-bottom table.mini td,
+.rail-bottom table.mini td:first-child{font-size:16px;padding-top:6px;padding-bottom:6px}
+.rail-bottom .close{row-gap:8px}
+.rail-bottom .close .v{font-size:17px}
+.rail-bottom .close .v.net{font-size:30px}
 
 /* ============ 下三塊 ============ */
 .foot{
   flex:none;margin-top:20px;
-  display:grid;grid-template-columns:minmax(0,2.7fr) minmax(0,.85fr) minmax(0,.95fr);
+  display:grid;grid-template-columns:1fr;
   gap:20px;align-items:stretch;
 }
+.foot:empty{display:none}
 .foot .gframe{padding:11px 18px 9px}
 .mini{width:100%;border-collapse:separate;border-spacing:0}
 .mini td{
@@ -258,11 +330,21 @@ th .adj,.mini .cols .adj{
 th .adj:hover,.mini .cols .adj:hover{color:#fff3d0}
 td .adj{border-bottom:1px dashed rgba(244,223,164,.3)}
 td .adj:hover{color:var(--gold-1);border-bottom-color:var(--gold-1)}
-td .adj.has-note{position:relative}
-td .adj.has-note::after{
+td .adj.other-edit{position:relative;min-width:3em;min-height:1.2em;text-align:right}
+td .adj.other-edit.has-note::after{
   content:"";position:absolute;top:-2px;right:-7px;width:4px;height:4px;border-radius:50%;
   background:var(--gold-2);
 }
+td .adj.other-edit.has-note::before{
+  content:attr(data-note);position:absolute;z-index:20;left:50%;top:calc(100% + 7px);
+  transform:translateX(-50%);width:max-content;max-width:240px;padding:8px 11px;border-radius:4px;
+  border:1px solid rgba(201,162,90,.65);background:#f4f0e5;color:#17201e;
+  box-shadow:0 7px 18px rgba(0,0,0,.35);font:500 13px/1.45 var(--sans);
+  letter-spacing:.02em;text-align:left;white-space:normal;opacity:0;visibility:hidden;
+  pointer-events:none;transition:opacity .12s ease,visibility .12s ease;
+}
+td .adj.other-edit.has-note:hover::before,
+td .adj.other-edit.has-note:focus-visible::before{opacity:1;visibility:visible}
 button.who{
   appearance:none;border:0;background:none;padding:0;font:inherit;color:inherit;cursor:pointer;
   border-bottom:1px solid transparent;
@@ -319,8 +401,17 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
   box-shadow:0 0 14px rgba(212,176,106,.35);
 }
 
+@media (max-width:1450px){
+  html,body{height:auto;overflow:auto}
+  .workspace{grid-template-columns:1fr}
+  .pit{min-height:620px}
+  .rail{grid-template-columns:minmax(0,1.35fr) minmax(360px,.65fr);grid-template-rows:auto}
+}
 @media (max-width:900px){
   html,body{height:auto;overflow:auto}
+  .workspace{display:block}
+  .rail{display:grid;grid-template-columns:1fr;margin-top:18px}
+  .rail-bottom{grid-template-columns:1fr}
   .pit{border-radius:40px/28px}
   .felt{border-radius:34px/24px;padding:14px 18px 16px}
   .foot{grid-template-columns:1fr;gap:16px}
@@ -341,16 +432,19 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
   <div class="auth" id="auth"></div>
 </header>
 
-<section class="pit">
-  <div class="felt">
-    <div class="felt-head">
-      <span class="rule"></span>
-      <span class="arc-text">DEALERS</span>
-      <span class="rule"></span>
+<div class="workspace">
+  <section class="pit">
+    <div class="felt">
+      <div class="felt-head">
+        <span class="rule"></span>
+        <span class="arc-text">WEEKLY PAYROLL</span>
+        <span class="rule"></span>
+      </div>
+      <div id="book"></div>
     </div>
-    <div id="book"></div>
-  </div>
-</section>
+  </section>
+  <aside class="rail" id="rail"></aside>
+</div>
 
 <div class="foot" id="foot"></div>
 
@@ -359,6 +453,7 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
   <span class="frame-title">Loan</span>
   <h2 id="loan-who"></h2>
   <div class="f"><label>欠款金額</label><input id="loan-bal" type="number" min="0" step="100"></div>
+  <div class="f"><label>新增金額</label><input id="loan-add" type="number" min="0" step="100"></div>
   <div class="f"><label>週還金額</label><input id="loan-week" type="number" min="0" step="100"></div>
   <div class="row">
     <button type="button" class="pri" id="loan-save">儲存</button>
@@ -378,11 +473,14 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
   </div>
 </aside>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 (() => {
   // ═══ Apps Script API(以試算表擁有者身分執行,老闆開頁面不用登入任何 Google 帳號) ═══
   const API_URL = "https://script.google.com/macros/s/AKfycbyvzJMc8HBTt-WhJTRN_pDQbwpzHuC9AOz7pQy1a1qrwJ1kgAGi4GHvkjAH6Zmwm1GxjQ/exec";
   const API_SECRET = "RHPUSm2WDM2KurGfKmucWqNzxqCp-wyd";
+  const SHEET_ID = "13f8OR_e4B4vTXgzoNQ0sswBbkfmj6jOJGfnweNaJx1c";
+  let WORKBOOK_PROMISE = null;
 
   const $ = (id) => document.getElementById(id);
 
@@ -433,8 +531,129 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     const j = await apiGet("tabs");
     return j.tabs;
   }
+  function dailyNameKey(name) {
+    return String(name || "").replace(/\s+/g, "").toLowerCase();
+  }
+  async function loadWorkbook() {
+    if (!window.XLSX) throw new Error("試算表解析元件載入失敗");
+    if (!WORKBOOK_PROMISE) {
+      WORKBOOK_PROMISE = fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=xlsx`)
+        .then((res) => {
+          if (!res.ok) throw new Error(`試算表匯出失敗(${res.status})`);
+          return res.arrayBuffer();
+        })
+        .then((buffer) => XLSX.read(buffer, { type: "array", cellDates: true }));
+    }
+    return WORKBOOK_PROMISE;
+  }
+  function cellCommentText(cell) {
+    const text = ((cell && cell.c) || []).map((comment) => comment.t || "").join("\n").trim();
+    if (!text) return "";
+    const times = text.match(/\d{1,2}:\d{2}/g);
+    return times && times.length >= 2 ? `${times[0]} ～ ${times[1]}` : text;
+  }
+  async function loadDailyHours(tab) {
+    const workbook = await loadWorkbook();
+    const sheet = workbook.Sheets[tab];
+    if (!sheet) throw new Error(`試算表找不到分頁 ${tab}`);
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, range: "M1:V60", raw: true, defval: null });
+    const details = {};
+    let inPeopleBlock = false;
+    rows.forEach((row, rowIndex) => {
+      const label = row[0] == null ? "" : String(row[0]).trim();
+      if (label.includes("荷官工作時數統計")) {
+        inPeopleBlock = true;
+        return;
+      }
+      if (label === "全部總時數") {
+        inPeopleBlock = false;
+        return;
+      }
+      if (!inPeopleBlock || !label || label === "時數/HR") return;
+      const values = [];
+      const notes = [];
+      for (let i = 0; i < 7; i += 1) {
+        const raw = row[i + 1];
+        const value = Number(raw);
+        values.push(raw == null || raw === "" || !Number.isFinite(value) ? null : value);
+        const address = XLSX.utils.encode_cell({ r: rowIndex, c: 13 + i });
+        notes.push(cellCommentText(sheet[address]));
+      }
+      details[dailyNameKey(label)] = { values, notes };
+    });
+    return details;
+  }
+  function sheetDate(value) {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return new Date(Date.UTC(value.getFullYear(), value.getMonth(), value.getDate()));
+    }
+    if (typeof value === "number") {
+      const parsed = XLSX.SSF.parse_date_code(value);
+      if (parsed) return new Date(Date.UTC(parsed.y, parsed.m - 1, parsed.d));
+    }
+    return null;
+  }
+  function dateKey(date) {
+    return [date.getUTCFullYear(), String(date.getUTCMonth() + 1).padStart(2, "0"), String(date.getUTCDate()).padStart(2, "0")].join("-");
+  }
+  async function loadDailyOperations(tab) {
+    const workbook = await loadWorkbook();
+    const sheet = workbook.Sheets[tab];
+    if (!sheet) throw new Error(`試算表找不到分頁 ${tab}`);
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
+    const grouped = {};
+    const dates = [];
+    rows.slice(1).forEach((row) => {
+      const date = sheetDate(row[0]);
+      if (!date) return;
+      const key = dateKey(date);
+      if (!grouped[key]) {
+        grouped[key] = { 勝負原值: 0, 洗碼量: 0, 筆數: 0 };
+        dates.push(date);
+      }
+      const win = Number(row[6]);
+      const wash = Number(row[7]);
+      if (Number.isFinite(win)) grouped[key].勝負原值 += win;
+      if (Number.isFinite(wash)) grouped[key].洗碼量 += wash;
+      grouped[key].筆數 += 1;
+    });
+    let monday;
+    if (dates.length) {
+      const earliest = new Date(Math.min(...dates.map((date) => date.getTime())));
+      const offset = (earliest.getUTCDay() + 6) % 7;
+      monday = new Date(earliest);
+      monday.setUTCDate(monday.getUTCDate() - offset);
+    } else {
+      const match = String(tab).match(/^(\d{2})(\d{2})$/);
+      monday = match
+        ? new Date(Date.UTC(new Date().getFullYear(), Number(match[1]) - 1, Number(match[2])))
+        : new Date();
+    }
+    const weekdays = ["一", "二", "三", "四", "五", "六", "日"];
+    return weekdays.map((day, index) => {
+      const date = new Date(monday);
+      date.setUTCDate(monday.getUTCDate() + index);
+      const rec = grouped[dateKey(date)] || { 勝負原值: 0, 洗碼量: 0, 筆數: 0 };
+      return {
+        day,
+        date: `${date.getUTCMonth() + 1}/${date.getUTCDate()}`,
+        ...rec,
+      };
+    });
+  }
   async function loadWeekData(tab) {
-    return apiGet("week", { tab });
+    const [week, dailyHours, dailyOperations] = await Promise.all([
+      apiGet("week", { tab }),
+      loadDailyHours(tab),
+      loadDailyOperations(tab),
+    ]);
+    (week.正式 || []).concat(week.實習 || []).forEach((person) => {
+      const daily = dailyHours[dailyNameKey(person.名字)] || {};
+      person.每日時數 = daily.values || Array(7).fill(null);
+      person.每日備註 = daily.notes || Array(7).fill("");
+    });
+    week.每日營運 = dailyOperations;
+    return week;
   }
 
   // ---------- 薪資設定分頁(使用者改過的值,換電腦也看得到) ----------
@@ -456,7 +675,11 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
       獎金分配方式: cfg.獎金分配方式,
       固定比例: { ...(cfg.固定比例 || {}) },
       退水每點: cfg.退水每點,
-      實習: { 獎金率: (cfg.實習 && cfg.實習.獎金率) || 0 },
+      實習: {
+        時薪: (cfg.實習 && cfg.實習.時薪) || 325,
+        獎金率: 0,
+      },
+      行政: { 阿生週薪: 7000, AT營業率: 0.0035 },
       對場主: { 業績率: cfg.對場主.業績率 },
       借支: {},
       其他: {},
@@ -472,10 +695,16 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
       renderError(`讀取失敗(抓不到就停,不猜):${err.message}`);
       return;
     }
+    moveForcedInterns(DATA);
     STORE = "payroll-rules-" + tab;
     const remote = SETTINGS_ROWS[tab] || null;
     saved = Object.assign(defaultRules(CONFIG), loadSavedLocal() || {}, remote || {});
     if (!saved.實習) saved.實習 = { 獎金率: 0 };
+    saved.實習.獎金率 = 0;
+    if (saved.實習.時薪 == null || saved.實習.時薪 === "" || Number(saved.實習.時薪) === 0) {
+      saved.實習.時薪 = (CONFIG.實習 && CONFIG.實習.時薪) || 325;
+    }
+    saved.行政 = { 阿生週薪: 7000, AT營業率: 0.0035, ...(saved.行政 || {}) };
     if (!saved.對場主) saved.對場主 = { 業績率: CONFIG.對場主.業績率 };
     if (!saved.借支) saved.借支 = {};
     if (!saved.其他) saved.其他 = {};
@@ -487,6 +716,27 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     applyHours(saved);
     applyTitles(saved);
     paint();
+  }
+
+  const FORCED_INTERNS = new Set(["vicky(v)", "赫(小蘇)"]);
+  const ADMIN_NAMES = new Set(["阿生", "at"]);
+  function normalizedName(name) {
+    return String(name || "").replace(/\s+/g, "").toLowerCase();
+  }
+  function moveForcedInterns(data) {
+    data.正式 = Array.isArray(data.正式) ? data.正式 : [];
+    data.實習 = Array.isArray(data.實習) ? data.實習 : [];
+    const moved = [];
+    data.正式 = data.正式.filter((person) => {
+      if (!FORCED_INTERNS.has(normalizedName(person.名字))) return true;
+      moved.push(person);
+      return false;
+    });
+    moved.forEach((person) => {
+      if (!data.實習.some((p) => normalizedName(p.名字) === normalizedName(person.名字))) {
+        data.實習.unshift(person);
+      }
+    });
   }
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
@@ -546,22 +796,40 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     return (n < 0 ? "−" : "") + Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
   }
   function pct(n) { return (n * 100).toFixed(1) + "%"; }
+  function pctExact(n) {
+    return (n * 100).toFixed(2).replace(/\.?0+$/, "") + "%";
+  }
+  function escapeAttr(value) {
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
   function renderOtherCell(p) {
     const amt = p.其他金額 || 0;
     const note = p.其他備註 || "";
-    const label = amt ? money(amt) : "";
-    const titleAttr = note ? ` title="${note.replace(/"/g, "&quot;")}"` : "";
-    return `<button type="button" class="adj${note ? " has-note" : ""}" data-edit="other" data-who="${p.名字}"${titleAttr}>${label}</button>`;
+    const noteAttrs = note
+      ? ` data-note="${escapeAttr(note)}" aria-label="其他金額 ${money(amt)}，備註：${escapeAttr(note)}"`
+      : ` aria-label="輸入其他金額與備註"`;
+    return `<button type="button" class="adj other-edit${note ? " has-note" : ""}" data-edit="other" data-who="${escapeAttr(p.名字)}"${noteAttrs}>${money(amt)}</button>`;
+  }
+  function renderRepaymentCell(p) {
+    if (p.合計 == null) return "";
+    return `<button type="button" class="adj" data-edit="repayment" data-who="${p.名字}">${money(p.還款 || 0)}</button>`;
   }
   function applyLoan(p, loans) {
     const rec = (loans && loans[p.名字]) || {};
     const 餘額 = Number(rec.餘額) || 0;
+    const 新增 = Math.max(0, Number(rec.新增) || 0);
     const 週還 = Number(rec.週還) || 0;
+    const 本週欠款 = 餘額 + 新增;
     if (p.合計 == null) {
-      return { ...p, 還款: null, 實發: null, 總欠款: 餘額 || 週還 ? 餘額 : 0 };
+      return { ...p, 還款: null, 實發: null, 總欠款: 本週欠款 || 週還 ? 本週欠款 : 0 };
     }
-    const 還款 = Math.max(0, Math.min(週還, 餘額, p.合計));
-    return { ...p, 還款, 實發: p.合計 - 還款 + (p.其他金額 || 0), 總欠款: 餘額 - 還款 };
+    const balanceCap = 本週欠款 > 0 ? 本週欠款 : p.合計;
+    const 還款 = Math.max(0, Math.min(週還, balanceCap, p.合計));
+    return { ...p, 還款, 實發: p.合計 - 還款 + (p.其他金額 || 0), 總欠款: 本週欠款 - 還款 };
   }
 
   function compute(cfg) {
@@ -586,11 +854,21 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     });
     const 實習時薪 = cfg.實習 && cfg.實習.時薪;
     const 實習 = (DATA.實習 || []).map((p) => {
+      const adminName = normalizedName(p.名字);
+      if (adminName === "阿生") {
+        const 時薪金額 = Math.max(0, Number(cfg.行政 && cfg.行政.阿生週薪) || 0);
+        return applyLoan(withOther({ ...p, 比例: null, 時薪金額, 獎金: 0, 合計: 時薪金額 }), 借支);
+      }
+      if (adminName === "at") {
+        const 比例 = Math.max(0, Number(cfg.行政 && cfg.行政.AT營業率) || 0);
+        const 獎金 = pyRound(總營業額 * 比例);
+        return applyLoan(withOther({ ...p, 比例, 時薪金額: 0, 獎金, 合計: 獎金 }), 借支);
+      }
       if (實習時薪 == null || 實習時薪 === "") {
         return applyLoan(withOther({ ...p, 合計: null }), 借支);
       }
       const 時薪金額 = pyRound(p.時數 * 實習時薪);
-      const 獎金 = pyRound(總營業額 * (cfg.實習.獎金率 || 0));
+      const 獎金 = 0;
       return applyLoan(withOther({ ...p, 時薪金額, 獎金, 合計: 時薪金額 + 獎金 }), 借支);
     });
     const 付_正式荷官 = 正式.reduce((s, p) => s + p.實發, 0);
@@ -600,6 +878,12 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     const 對場主_業績 = pyRound(總營業額 * cfg.對場主.業績率);
     const 對場主_荷官薪資 = pyRound(正式總時數 * cfg.時薪);
     const 對場主_合計 = 對場主_業績 + 對場主_荷官薪資;
+    const 每日營運 = (DATA.每日營運 || []).map((row) => {
+      const 勝負 = pyRound(-(Number(row.勝負原值) || 0));
+      const 洗碼量 = Number(row.洗碼量) || 0;
+      const 退水 = pyRound(洗碼量 * cfg.退水每點);
+      return { ...row, 勝負, 洗碼量, 營業額: 勝負 - 退水 };
+    });
     return {
       tab: DATA.tab,
       config: cfg,
@@ -612,8 +896,12 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
       付_正式荷官,
       獎金池: pyRound(獎金池),
       實習,
+      實習總時數: 實習.reduce((s, p) => s + p.時數, 0),
+      實習時薪小計: 實習.reduce((s, p) => s + (p.時薪金額 || 0), 0),
+      實習應發小計: 實習.reduce((s, p) => s + (p.合計 || 0), 0),
       實習未定: 實習.some((p) => p.合計 == null),
       行政未定: !!DATA.行政未定,
+      每日營運,
       對場主_業績, 對場主_荷官薪資, 對場主_合計,
       付_實習,
       淨額: 對場主_合計 - 付_正式荷官 - 付_實習,
@@ -623,6 +911,12 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
   function internWage() {
     const v = saved.實習 && saved.實習.時薪;
     return v == null || v === "" ? 0 : v;
+  }
+  function adminWeeklySalary() {
+    return Math.max(0, Number(saved.行政 && saved.行政.阿生週薪) || 0);
+  }
+  function adminRevenueRate() {
+    return Math.max(0, Number(saved.行政 && saved.行政.AT營業率) || 0);
   }
 
   function renderTabs(current) {
@@ -634,16 +928,48 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
   function renderLoading(text) {
     $("summary").innerHTML = "";
     $("foot").innerHTML = "";
+    $("rail").innerHTML = "";
     $("book").innerHTML = `<div class="msg"><div class="t">${text}</div></div>`;
   }
   function renderError(text) {
     $("summary").innerHTML = "";
     $("foot").innerHTML = "";
+    $("rail").innerHTML = "";
     $("book").innerHTML = `<div class="msg err"><div class="t">抓不到就停,不猜</div><div class="d">${text}</div></div>`;
   }
 
   function render(s) {
     const showLoan = (p) => p.還款 || p.總欠款;
+    const vickyInterns = (s.實習 || []).filter((p) => FORCED_INTERNS.has(normalizedName(p.名字)));
+    const adminPeople = (s.實習 || []).filter((p) => ADMIN_NAMES.has(normalizedName(p.名字)));
+    const otherInterns = (s.實習 || []).filter((p) => {
+      const name = normalizedName(p.名字);
+      return !FORCED_INTERNS.has(name) && !ADMIN_NAMES.has(name);
+    });
+    const dayValue = (value) => {
+      if (value == null || value === "") return "";
+      const n = Number(value);
+      if (!Number.isFinite(n)) return "";
+      return Number.isInteger(n) ? String(n) : n.toFixed(1);
+    };
+    const quantityValue = (value) => {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return "";
+      return n.toLocaleString("en-US", { maximumFractionDigits: 1 });
+    };
+    const dayCells = (person) => Array.from({ length: 7 }, (_, i) => {
+      const note = (person.每日備註 && person.每日備註[i]) || "";
+      const className = `day-col${note ? " has-shift" : ""}`;
+      const tooltip = note
+        ? ` data-shift="${escapeAttr(note)}" aria-label="${escapeAttr(note)}"`
+        : "";
+      return `<td class="${className}"${tooltip}>${dayValue(person.每日時數 && person.每日時數[i])}</td>`;
+    }).join("");
+    const dayTotalCells = (people) => Array.from({ length: 7 }, (_, i) => {
+      const values = people.map((p) => p.每日時數 && p.每日時數[i]).filter((v) => v != null && v !== "");
+      return `<td class="day-col">${values.length ? dayValue(values.reduce((sum, v) => sum + Number(v), 0)) : ""}</td>`;
+    }).join("");
+    const blankDayCells = '<td class="day-col"></td>'.repeat(7);
 
     renderTabs(s.tab);
 
@@ -652,11 +978,55 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
       <div><span class="k">總退水</span><span class="v neg">${money(-s.總退水)}</span></div>
       <div class="lead"><span class="k">總營業額</span><span class="v">${money(s.總營業額)}</span></div>`;
 
+    const operationRows = (s.每日營運 || []).map((row) => `
+      <tr>
+        <td class="day-label">${row.date}<span class="op-weekday">${row.day}</span></td>
+        <td class="${row.勝負 < 0 ? "neg" : ""}">${row.筆數 ? money(row.勝負) : ""}</td>
+        <td class="wash">${row.筆數 ? quantityValue(row.洗碼量) : ""}</td>
+        <td class="${row.營業額 < 0 ? "neg" : ""}">${row.筆數 ? money(row.營業額) : ""}</td>
+      </tr>`).join("");
+    const weeklyWash = (s.每日營運 || []).reduce((sum, row) => sum + row.洗碼量, 0);
+
+    $("rail").innerHTML = `
+      <div class="gframe daily-card">
+        <span class="frame-title">Daily Operations</span>
+        <h2 class="daily-title">每日營運</h2>
+        <table class="daily-table">
+          <thead><tr><th>日期</th><th>勝負</th><th>洗碼<small>點</small></th><th>營業額</th></tr></thead>
+          <tbody>${operationRows}</tbody>
+          <tfoot><tr>
+            <td>本週總計</td><td>${money(s.總勝負)}</td><td>${quantityValue(weeklyWash)}</td><td>${money(s.總營業額)}</td>
+          </tr></tfoot>
+        </table>
+      </div>
+      <div class="rail-bottom">
+        <div class="gframe">
+          <span class="frame-title">Owner</span>
+          <table class="mini">
+            <tr><td>業績<button type="button" class="adj" data-edit="rev">(${(s.config.對場主.業績率 * 100).toFixed(0)}%)</button></td><td>${money(s.對場主_業績)}</td></tr>
+            <tr><td>荷官薪資</td><td>${money(s.對場主_荷官薪資)}</td></tr>
+            <tr class="sum"><td>合計應收</td><td>${money(s.對場主_合計)}</td></tr>
+          </table>
+        </div>
+        <div class="gframe">
+          <span class="frame-title">Close</span>
+          <div class="close">
+            <div class="k">收</div><div class="v">${money(s.對場主_合計)}</div>
+            <div class="k">付</div><div class="v pay">${money(-(s.付_正式荷官 + s.付_實習))}</div>
+            <div class="rule"></div>
+            <div class="k net-k">淨</div><div class="v net">${money(s.淨額)}</div>
+          </div>
+        </div>
+      </div>`;
+
     $("book").innerHTML = `
       <table class="pay">
         <thead>
           <tr>
-            <th>荷官</th><th>時數</th><th>比例</th>
+            <th>荷官</th>
+            <th class="day-col">一</th><th class="day-col">二</th><th class="day-col">三</th><th class="day-col">四</th>
+            <th class="day-col">五</th><th class="day-col">六</th><th class="day-col">日</th>
+            <th>時數</th><th>比例</th>
             <th>時薪<button type="button" class="adj" data-edit="wage">(${s.config.時薪})</button></th>
             <th>獎金<button type="button" class="adj" data-edit="bonus">(${(s.config.獎金率 * 100).toFixed(0)}%)</button></th>
             <th>合計</th><th>還款</th><th>其他</th><th>實發</th><th>總欠款</th>
@@ -666,20 +1036,20 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
           ${s.正式.map((p) => `
             <tr>
               <td class="name"><button type="button" class="who" data-name="${p.名字}">${p.名字}</button></td>
+              ${dayCells(p)}
               <td><button type="button" class="adj" data-edit="hours" data-who="${p.名字}">${p.時數.toFixed(1)}</button></td>
               <td>${pct(p.比例)}</td>
               <td>${money(p.時薪金額)}</td>
               <td>${money(p.獎金)}</td>
               <td>${money(p.合計)}</td>
-              <td>${showLoan(p) ? money(p.還款) : ""}</td>
+              <td>${renderRepaymentCell(p)}</td>
               <td>${renderOtherCell(p)}</td>
               <td class="total">${money(p.實發)}</td>
               <td>${showLoan(p) ? money(p.總欠款) : ""}</td>
             </tr>`).join("")}
-        </tbody>
-        <tfoot>
-          <tr>
+          <tr class="formal-subtotal">
             <td class="name">正式小計</td>
+            ${dayTotalCells(s.正式)}
             <td>${s.正式總時數.toFixed(1)}</td>
             <td></td>
             <td>${money(s.正式時薪小計)}</td>
@@ -690,36 +1060,90 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
             <td class="total">${money(s.付_正式荷官)}</td>
             <td></td>
           </tr>
-        </tfoot>
+          <tr class="intern-head">
+            <th>實習荷官</th>
+            <th class="day-col">一</th><th class="day-col">二</th><th class="day-col">三</th><th class="day-col">四</th>
+            <th class="day-col">五</th><th class="day-col">六</th><th class="day-col">日</th>
+            <th>時數</th><th>比例</th>
+            <th>時薪<button type="button" class="adj" data-edit="internWage">(${internWage()})</button></th>
+            <th>獎金</th><th>合計</th><th>還款</th><th>其他</th><th>實發</th><th>總欠款</th>
+          </tr>
+          ${vickyInterns.map((p) => `
+            <tr class="intern-row">
+              <td class="name">${p.虛擬 ? `<button type="button" class="adj" data-edit="internName" data-who="${p.名字}">${p.名字}</button>` : `<button type="button" class="who" data-name="${p.名字}">${p.名字}</button>`}</td>
+              ${dayCells(p)}
+              <td><button type="button" class="adj" data-edit="hours" data-who="${p.名字}">${p.時數.toFixed(1)}</button></td>
+              <td></td>
+              <td>${p.時薪金額 == null ? "0" : money(p.時薪金額)}</td>
+              <td></td>
+              <td>${p.合計 == null ? "" : money(p.合計)}</td>
+              <td>${renderRepaymentCell(p)}</td>
+              <td>${renderOtherCell(p)}</td>
+              <td class="total">${p.實發 == null ? "" : money(p.實發)}</td>
+              <td>${showLoan(p) ? money(p.總欠款) : ""}</td>
+            </tr>`).join("") || `<tr><td colspan="17" class="dim">本週無實習荷官</td></tr>`}
+          <tr class="intern-subtotal">
+            <td class="name">實習小計</td>
+            ${dayTotalCells(vickyInterns)}
+            <td>${vickyInterns.reduce((a, p) => a + p.時數, 0).toFixed(1)}</td>
+            <td></td>
+            <td>${money(vickyInterns.reduce((a, p) => a + (p.時薪金額 || 0), 0))}</td>
+            <td></td>
+            <td>${vickyInterns.some((p) => p.合計 == null) ? "" : money(vickyInterns.reduce((a, p) => a + (p.合計 || 0), 0))}</td>
+            <td>${money(vickyInterns.reduce((a, p) => a + (p.還款 || 0), 0))}</td>
+            <td>${(() => { const t = vickyInterns.reduce((a, p) => a + (p.其他金額 || 0), 0); return t ? money(t) : ""; })()}</td>
+            <td class="total">${money(vickyInterns.reduce((a, p) => a + (p.實發 || 0), 0))}</td>
+            <td></td>
+          </tr>
+          <tr class="admin-head">
+            <th>行政</th>
+            <th class="day-col">一</th><th class="day-col">二</th><th class="day-col">三</th><th class="day-col">四</th>
+            <th class="day-col">五</th><th class="day-col">六</th><th class="day-col">日</th>
+            <th>時數</th><th>比例</th>
+            <th>固定薪</th><th>營業抽成</th><th>合計</th><th>還款</th><th>其他</th><th>實發</th><th>總欠款</th>
+          </tr>
+          ${adminPeople.map((p) => `
+            <tr class="admin-row">
+              <td class="name"><button type="button" class="who" data-name="${p.名字}">${p.名字}</button></td>
+              ${blankDayCells}
+              <td></td>
+              <td>${normalizedName(p.名字) === "at" ? `<button type="button" class="adj" data-edit="adminRate">${pctExact(p.比例)}</button>` : ""}</td>
+              <td>${normalizedName(p.名字) === "阿生" ? `<button type="button" class="adj" data-edit="adminWeekly">${money(p.時薪金額)}</button>` : ""}</td>
+              <td>${normalizedName(p.名字) === "at" ? money(p.獎金) : ""}</td>
+              <td>${p.合計 == null ? "" : money(p.合計)}</td>
+              <td>${renderRepaymentCell(p)}</td>
+              <td>${renderOtherCell(p)}</td>
+              <td class="total">${p.實發 == null ? "" : money(p.實發)}</td>
+              <td>${showLoan(p) ? money(p.總欠款) : ""}</td>
+            </tr>`).join("") || `<tr><td colspan="17" class="dim">本週無行政人員</td></tr>`}
+          <tr class="intern-subtotal admin-subtotal">
+            <td class="name">行政小計</td>
+            ${blankDayCells}
+            <td></td>
+            <td></td>
+            <td>${money(adminPeople.reduce((a, p) => a + (p.時薪金額 || 0), 0))}</td>
+            <td>${money(adminPeople.reduce((a, p) => a + (p.獎金 || 0), 0))}</td>
+            <td>${adminPeople.some((p) => p.合計 == null) ? "" : money(adminPeople.reduce((a, p) => a + (p.合計 || 0), 0))}</td>
+            <td>${money(adminPeople.reduce((a, p) => a + (p.還款 || 0), 0))}</td>
+            <td>${(() => { const t = adminPeople.reduce((a, p) => a + (p.其他金額 || 0), 0); return t ? money(t) : ""; })()}</td>
+            <td class="total">${money(adminPeople.reduce((a, p) => a + (p.實發 || 0), 0))}</td>
+            <td></td>
+          </tr>
+        </tbody>
       </table>`;
 
     const internHead = `<tr class="cols"><td>職稱</td><td>姓名</td><td>時數</td><td>時薪<button type="button" class="adj" data-edit="internWage">(${internWage()})</button></td><td>合計</td><td>還款</td><td>其他</td><td>實發</td><td>總欠款</td></tr>`;
-    const internRows = (s.實習 || []).map((p) =>
-      `<tr><td><button type="button" class="adj" data-edit="title" data-who="${p.名字}">${p.職稱 || "—"}</button></td><td>${p.虛擬 ? `<button type="button" class="adj" data-edit="internName" data-who="${p.名字}">${p.名字}</button>` : `<button type="button" class="who" data-name="${p.名字}">${p.名字}</button>`}</td><td><button type="button" class="adj" data-edit="hours" data-who="${p.名字}">${p.時數.toFixed(1)}</button></td><td>${p.時薪金額 == null ? "0" : money(p.時薪金額)}</td><td>${p.合計 == null ? "" : money(p.合計)}</td><td>${showLoan(p) ? money(p.還款 || 0) : ""}</td><td>${renderOtherCell(p)}</td><td>${p.實發 == null ? "" : money(p.實發)}</td><td>${showLoan(p) ? money(p.總欠款) : ""}</td></tr>`
-    ).join("") || `<tr><td colspan="9" class="dim">本週無實習</td></tr>`;
+    const internRows = otherInterns.map((p) =>
+      `<tr><td><button type="button" class="adj" data-edit="title" data-who="${p.名字}">${p.職稱 || "—"}</button></td><td>${p.虛擬 ? `<button type="button" class="adj" data-edit="internName" data-who="${p.名字}">${p.名字}</button>` : `<button type="button" class="who" data-name="${p.名字}">${p.名字}</button>`}</td><td><button type="button" class="adj" data-edit="hours" data-who="${p.名字}">${p.時數.toFixed(1)}</button></td><td>${p.時薪金額 == null ? "0" : money(p.時薪金額)}</td><td>${p.合計 == null ? "" : money(p.合計)}</td><td>${renderRepaymentCell(p)}</td><td>${renderOtherCell(p)}</td><td>${p.實發 == null ? "" : money(p.實發)}</td><td>${showLoan(p) ? money(p.總欠款) : ""}</td></tr>`
+    ).join("") || `<tr><td colspan="9" class="dim">本週無其他實習</td></tr>`;
 
-    $("foot").innerHTML = `
+    const extraInternPanel = otherInterns.length ? `
       <div class="gframe">
         <span class="frame-title">Interns</span>
         <table class="mini">${internHead}${internRows}</table>
-      </div>
-      <div class="gframe">
-        <span class="frame-title">Owner</span>
-        <table class="mini">
-          <tr><td>業績<button type="button" class="adj" data-edit="rev">(${(s.config.對場主.業績率 * 100).toFixed(0)}%)</button></td><td>${money(s.對場主_業績)}</td></tr>
-          <tr><td>荷官薪資</td><td>${money(s.對場主_荷官薪資)}</td></tr>
-          <tr class="sum"><td>合計應收</td><td>${money(s.對場主_合計)}</td></tr>
-        </table>
-      </div>
-      <div class="gframe">
-        <span class="frame-title">Close</span>
-        <div class="close">
-          <div class="k">收</div><div class="v">${money(s.對場主_合計)}</div>
-          <div class="k">付</div><div class="v pay">${money(-(s.付_正式荷官 + s.付_實習))}</div>
-          <div class="rule"></div>
-          <div class="k net-k">淨</div><div class="v net">${money(s.淨額)}</div>
-        </div>
-      </div>`;
+      </div>` : "";
+
+    $("foot").innerHTML = extraInternPanel;
   }
 
   function paint() { render(compute(saved)); }
@@ -762,6 +1186,7 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     const rec = ((saved.借支) || {})[name] || {};
     $("loan-who").textContent = name;
     $("loan-bal").value = rec.餘額 || "";
+    $("loan-add").value = rec.新增 || "";
     $("loan-week").value = rec.週還 || "";
     loanPop.classList.add("on");
     loanScrim.classList.add("on");
@@ -804,6 +1229,20 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     const kind = adj.dataset.edit;
     if (kind === "other") {
       openOther(adj.dataset.who);
+    } else if (kind === "repayment") {
+      const name = adj.dataset.who;
+      const snapshot = compute(saved);
+      const person = snapshot.正式.concat(snapshot.實習 || []).find((p) => p.名字 === name);
+      const current = person ? (person.還款 || 0) : 0;
+      startEdit(adj, String(current), (v) => {
+        const amount = Math.max(0, numOr(v, current));
+        const loans = clone(saved.借支 || {});
+        const rec = { ...(loans[name] || {}), 週還: amount };
+        if ((Number(rec.餘額) || 0) || (Number(rec.新增) || 0) || amount) loans[name] = rec;
+        else delete loans[name];
+        saved.借支 = loans;
+        persist();
+      });
     } else if (kind === "internName") {
       const name = adj.dataset.who;
       startEdit(adj, name, (v) => {
@@ -851,6 +1290,22 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
         saved.對場主.業績率 = (n < 0 ? 0 : n) / 100;
         persist();
       });
+    } else if (kind === "adminWeekly") {
+      const cur = adminWeeklySalary();
+      startEdit(adj, String(cur), (v) => {
+        const n = numOr(v, cur);
+        saved.行政 = saved.行政 || {};
+        saved.行政.阿生週薪 = n < 0 ? 0 : n;
+        persist();
+      });
+    } else if (kind === "adminRate") {
+      const cur = adminRevenueRate() * 100;
+      startEdit(adj, String(cur), (v) => {
+        const n = numOr(v, cur);
+        saved.行政 = saved.行政 || {};
+        saved.行政.AT營業率 = (n < 0 ? 0 : n) / 100;
+        persist();
+      });
     } else if (kind === "internWage") {
       const cur = internWage();
       startEdit(adj, String(cur), (v) => {
@@ -865,6 +1320,7 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     }
   }
   $("book").addEventListener("click", onEditClick);
+  $("rail").addEventListener("click", onEditClick);
   $("foot").addEventListener("click", onEditClick);
 
   $("loan-close").onclick = closeLoan;
@@ -872,11 +1328,13 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
   $("loan-save").onclick = () => {
     if (!loanName) return;
     const 餘額 = Number($("loan-bal").value);
+    const 新增 = Number($("loan-add").value);
     const 週還 = Number($("loan-week").value);
     const loans = clone((saved.借支) || {});
-    if ((餘額 || 0) || (週還 || 0)) {
+    if ((餘額 || 0) || (新增 || 0) || (週還 || 0)) {
       loans[loanName] = {
         餘額: Number.isFinite(餘額) ? 餘額 : 0,
+        新增: Number.isFinite(新增) ? Math.max(0, 新增) : 0,
         週還: Number.isFinite(週還) ? 週還 : 0,
       };
     } else {
