@@ -1107,10 +1107,6 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     const showLoan = (p) => p.還款 || p.總欠款;
     const vickyInterns = (s.實習 || []).filter((p) => FORCED_INTERNS.has(normalizedName(p.名字)));
     const adminPeople = (s.實習 || []).filter((p) => ADMIN_NAMES.has(normalizedName(p.名字)));
-    const otherInterns = (s.實習 || []).filter((p) => {
-      const name = normalizedName(p.名字);
-      return !FORCED_INTERNS.has(name) && !ADMIN_NAMES.has(name);
-    });
     const dayValue = (value) => {
       if (value == null || value === "") return "";
       const n = Number(value);
@@ -1297,18 +1293,7 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
         </tbody>
       </table>`;
 
-    const internHead = `<tr class="cols"><td>職稱</td><td>姓名</td><td>時數</td><td>時薪<button type="button" class="adj" data-edit="internWage">(${internWage()})</button></td><td>合計</td><td>還款</td><td>其他</td><td>實發</td><td>總欠款</td></tr>`;
-    const internRows = otherInterns.map((p) =>
-      `<tr><td><button type="button" class="adj" data-edit="title" data-who="${p.名字}">${p.職稱 || "—"}</button></td><td>${p.虛擬 ? `<button type="button" class="adj" data-edit="internName" data-who="${p.名字}">${p.名字}</button>` : `<button type="button" class="who" data-name="${p.名字}">${p.名字}</button>`}</td><td><button type="button" class="adj" data-edit="hours" data-who="${p.名字}">${p.時數.toFixed(1)}</button></td><td>${p.時薪金額 == null ? "0" : money(p.時薪金額)}</td><td>${p.合計 == null ? "" : money(p.合計)}</td><td>${renderRepaymentCell(p)}</td><td>${renderOtherCell(p)}</td><td>${p.實發 == null ? "" : money(p.實發)}</td><td>${showLoan(p) ? money(p.總欠款) : ""}</td></tr>`
-    ).join("") || `<tr><td colspan="9" class="dim">本週無其他實習</td></tr>`;
-
-    const extraInternPanel = otherInterns.length ? `
-      <div class="gframe">
-        <span class="frame-title">Interns</span>
-        <table class="mini">${internHead}${internRows}</table>
-      </div>` : "";
-
-    $("foot").innerHTML = extraInternPanel;
+    $("foot").innerHTML = "";
   }
 
   function paint() { render(compute(saved)); }
