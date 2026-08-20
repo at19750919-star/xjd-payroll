@@ -502,7 +502,7 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
   <h2 id="loan-who"></h2>
   <div class="f"><label>欠款金額</label><input id="loan-bal" type="number" min="0" step="100"></div>
   <div class="f"><label>新增金額</label><input id="loan-add" type="number" min="0" step="100"></div>
-  <div class="f"><label>週還金額</label><input id="loan-week" type="number" min="0" step="100"></div>
+  <div class="f"><label>固定還款金額</label><input id="loan-week" type="number" min="0" step="100"></div>
   <div class="row">
     <button type="button" class="pri" id="loan-save">儲存</button>
     <button type="button" id="loan-close">關閉</button>
@@ -757,6 +757,7 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     if (!saved.對場主) saved.對場主 = { 業績率: CONFIG.對場主.業績率 };
     if (!saved.借支) saved.借支 = {};
     if (!saved.其他) saved.其他 = {};
+    const loanSchemaChanged = normalizeLoanSchema(saved);
     const carriedLoans = await carryLoansForward(tab, saved);
     if (!saved.額外實習) saved.額外實習 = [];
     saved.額外實習.forEach((name) => {
@@ -766,16 +767,34 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     applyHours(saved);
     applyTitles(saved);
     paint();
-    if (carriedLoans) {
+    if (loanSchemaChanged || carriedLoans) {
       try { localStorage.setItem(STORE, JSON.stringify(saved)); } catch {}
-      setSaveFlag(`借支已承接 ${saved.借支承接來源}`);
+      const statusText = carriedLoans ? `借支已承接 ${saved.借支承接來源}` : "借支設定已更新";
+      setSaveFlag(statusText);
       saveWeekSettings(tab, saved)
-        .then(() => setSaveFlag(`借支已承接 ${saved.借支承接來源}`))
+        .then(() => setSaveFlag(statusText))
         .catch((err) => setSaveFlag(`借支承接儲存失敗:${err.message}`, true));
     }
   }
 
-  const LOAN_CARRY_VERSION = 2;
+  const LOAN_SCHEMA_VERSION = 2;
+  const LOAN_CARRY_VERSION = 3;
+
+  function normalizeLoanSchema(rules) {
+    const loans = rules.借支 || {};
+    let changed = Number(rules.借支欄位版本 || 0) < LOAN_SCHEMA_VERSION;
+    Object.keys(loans).forEach((name) => {
+      const rec = loans[name] && typeof loans[name] === "object" ? { ...loans[name] } : {};
+      const legacyPayment = Math.max(0, Number(rec.週還) || 0);
+      if (rec.固定還款 == null) { rec.固定還款 = legacyPayment; changed = true; }
+      if (rec.本週還款 == null) { rec.本週還款 = legacyPayment; changed = true; }
+      if (Object.prototype.hasOwnProperty.call(rec, "週還")) { delete rec.週還; changed = true; }
+      loans[name] = rec;
+    });
+    rules.借支 = loans;
+    rules.借支欄位版本 = LOAN_SCHEMA_VERSION;
+    return changed;
+  }
 
   async function carryLoansForward(tab, rules) {
     const currentLoans = rules.借支 || {};
@@ -792,6 +811,7 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     previousRules.行政 = { 阿生週薪: 7000, AT營業率: 0.0035, ...(previousRules.行政 || {}) };
     previousRules.借支 = previousRules.借支 || {};
     previousRules.其他 = previousRules.其他 || {};
+    normalizeLoanSchema(previousRules);
 
     const previousData = clone(WEEK_CACHE[previousTab] || await loadWeekData(previousTab));
     moveForcedInterns(previousData);
@@ -805,8 +825,12 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
 
     const previousSnapshot = compute(previousRules, previousData);
     const previousBalances = {};
+    const previousFixedPayments = {};
     previousSnapshot.正式.concat(previousSnapshot.實習 || []).forEach((person) => {
-      previousBalances[loanNameKey(person.名字)] = Math.max(0, Number(person.總欠款) || 0);
+      const key = loanNameKey(person.名字);
+      previousBalances[key] = Math.max(0, Number(person.總欠款) || 0);
+      const previousLoan = previousRules.借支[person.名字] || {};
+      previousFixedPayments[key] = Math.max(0, Number(previousLoan.固定還款) || 0);
     });
     const nextLoans = {};
     DATA.正式.concat(DATA.實習 || []).forEach((person) => {
@@ -815,7 +839,8 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
       nextLoans[person.名字] = {
         餘額: balance,
         新增: 0,
-        週還: 0,
+        固定還款: previousFixedPayments[loanNameKey(person.名字)] || 0,
+        本週還款: 0,
       };
     });
     rules.借支 = nextLoans;
@@ -947,13 +972,13 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     const rec = (loans && loans[p.名字]) || {};
     const 餘額 = Number(rec.餘額) || 0;
     const 新增 = Math.max(0, Number(rec.新增) || 0);
-    const 週還 = Number(rec.週還) || 0;
+    const 本週還款 = Math.max(0, Number(rec.本週還款) || 0);
     const 本週欠款 = 餘額 + 新增;
     if (p.合計 == null) {
-      return { ...p, 還款: null, 實發: null, 總欠款: 本週欠款 || 週還 ? 本週欠款 : 0 };
+      return { ...p, 還款: null, 實發: null, 總欠款: 本週欠款 || 本週還款 ? 本週欠款 : 0 };
     }
     const balanceCap = 本週欠款 > 0 ? 本週欠款 : p.合計;
-    const 還款 = Math.max(0, Math.min(週還, balanceCap, p.合計));
+    const 還款 = Math.max(0, Math.min(本週還款, balanceCap, p.合計));
     return { ...p, 還款, 實發: p.合計 - 還款 + (p.其他金額 || 0), 總欠款: 本週欠款 - 還款 };
   }
 
@@ -1366,7 +1391,7 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     $("loan-who").textContent = name;
     $("loan-bal").value = rec.餘額 || "";
     $("loan-add").value = rec.新增 || "";
-    $("loan-week").value = rec.週還 || "";
+    $("loan-week").value = rec.固定還款 || "";
     loanPop.classList.add("on");
     loanScrim.classList.add("on");
     loanPop.setAttribute("aria-hidden", "false");
@@ -1416,8 +1441,8 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
       startEdit(adj, String(current), (v) => {
         const amount = Math.max(0, numOr(v, current));
         const loans = clone(saved.借支 || {});
-        const rec = { ...(loans[name] || {}), 週還: amount };
-        if ((Number(rec.餘額) || 0) || (Number(rec.新增) || 0) || amount) loans[name] = rec;
+        const rec = { ...(loans[name] || {}), 本週還款: amount };
+        if ((Number(rec.餘額) || 0) || (Number(rec.新增) || 0) || (Number(rec.固定還款) || 0) || amount) loans[name] = rec;
         else delete loans[name];
         saved.借支 = loans;
         persist();
@@ -1510,13 +1535,17 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     if (!loanName) return;
     const 餘額 = Number($("loan-bal").value);
     const 新增 = Number($("loan-add").value);
-    const 週還 = Number($("loan-week").value);
+    const 固定還款 = Number($("loan-week").value);
     const loans = clone((saved.借支) || {});
-    if ((餘額 || 0) || (新增 || 0) || (週還 || 0)) {
+    const existing = loans[loanName] || {};
+    const 本週還款 = Math.max(0, Number(existing.本週還款) || 0);
+    if ((餘額 || 0) || (新增 || 0) || (固定還款 || 0) || 本週還款) {
       loans[loanName] = {
+        ...existing,
         餘額: Number.isFinite(餘額) ? 餘額 : 0,
         新增: Number.isFinite(新增) ? Math.max(0, 新增) : 0,
-        週還: Number.isFinite(週還) ? 週還 : 0,
+        固定還款: Number.isFinite(固定還款) ? Math.max(0, 固定還款) : 0,
+        本週還款,
       };
     } else {
       delete loans[loanName];
