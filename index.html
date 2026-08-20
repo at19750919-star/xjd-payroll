@@ -775,13 +775,19 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     }
   }
 
+  const LOAN_CARRY_VERSION = 2;
+
   async function carryLoansForward(tab, rules) {
     const currentLoans = rules.借支 || {};
-    if (rules.借支承接來源 || Object.keys(currentLoans).length) return false;
     const index = TABS.indexOf(tab);
     if (index <= 0) return false;
 
     const previousTab = TABS[index - 1];
+    const isNewCarry = !rules.借支承接來源 && !Object.keys(currentLoans).length;
+    const needsCarryFix = rules.借支承接來源 === previousTab
+      && Number(rules.借支承接版本 || 0) < LOAN_CARRY_VERSION;
+    if (!isNewCarry && !needsCarryFix) return false;
+
     const previousRules = Object.assign(defaultRules(CONFIG), SETTINGS_ROWS[previousTab] || {});
     previousRules.行政 = { 阿生週薪: 7000, AT營業率: 0.0035, ...(previousRules.行政 || {}) };
     previousRules.借支 = previousRules.借支 || {};
@@ -798,19 +804,23 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     });
 
     const previousSnapshot = compute(previousRules, previousData);
-    const nextLoans = {};
+    const previousBalances = {};
     previousSnapshot.正式.concat(previousSnapshot.實習 || []).forEach((person) => {
-      const balance = Math.max(0, Number(person.總欠款) || 0);
+      previousBalances[loanNameKey(person.名字)] = Math.max(0, Number(person.總欠款) || 0);
+    });
+    const nextLoans = {};
+    DATA.正式.concat(DATA.實習 || []).forEach((person) => {
+      const balance = previousBalances[loanNameKey(person.名字)] || 0;
       if (!balance) return;
-      const previousLoan = previousRules.借支[person.名字] || {};
       nextLoans[person.名字] = {
         餘額: balance,
         新增: 0,
-        週還: Math.max(0, Number(previousLoan.週還) || 0),
+        週還: 0,
       };
     });
     rules.借支 = nextLoans;
     rules.借支承接來源 = previousTab;
+    rules.借支承接版本 = LOAN_CARRY_VERSION;
     return true;
   }
 
@@ -818,6 +828,10 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
   const ADMIN_NAMES = new Set(["阿生", "at"]);
   function normalizedName(name) {
     return String(name || "").replace(/\s+/g, "").toLowerCase();
+  }
+  function loanNameKey(name) {
+    const normalized = normalizedName(name);
+    return /^xiao(?:[（(].*)?$/.test(normalized) ? "xiao" : normalized;
   }
   function moveForcedInterns(data) {
     data.正式 = Array.isArray(data.正式) ? data.正式 : [];
