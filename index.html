@@ -267,6 +267,7 @@ table.pay .intern-subtotal td:first-child{
 .daily-table .day-label{font-family:var(--sans);font-weight:500}
 .daily-table .op-weekday{margin-left:7px;font-size:10px;color:var(--txt-dim)}
 .daily-table .wash{color:var(--txt-dim)}
+.daily-table .pos{color:var(--ok)}
 .daily-table .neg{color:var(--banker)}
 .daily-table tfoot td{
   padding-top:11px;border-bottom:0;border-top:1px solid rgba(244,223,164,.45);
@@ -1145,9 +1146,9 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     const operationRows = (s.每日營運 || []).map((row) => `
       <tr>
         <td class="day-label">${row.date}<span class="op-weekday">${row.day}</span></td>
-        <td class="${row.勝負 < 0 ? "neg" : ""}">${row.筆數 ? money(row.勝負) : ""}</td>
+        <td class="${row.勝負 > 0 ? "pos" : row.勝負 < 0 ? "neg" : ""}">${row.筆數 ? money(row.勝負) : ""}</td>
         <td class="wash">${row.筆數 ? quantityValue(row.洗碼量) : ""}</td>
-        <td class="${row.營業額 < 0 ? "neg" : ""}">${row.筆數 ? money(row.營業額) : ""}</td>
+        <td class="${row.營業額 > 0 ? "pos" : row.營業額 < 0 ? "neg" : ""}">${row.筆數 ? money(row.營業額) : ""}</td>
       </tr>`).join("");
     const weeklyWash = (s.每日營運 || []).reduce((sum, row) => sum + row.洗碼量, 0);
 
@@ -1158,7 +1159,7 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
           <thead><tr><th>日期</th><th>勝負</th><th>洗碼<small>點</small></th><th>營業額</th></tr></thead>
           <tbody>${operationRows}</tbody>
           <tfoot><tr>
-            <td>本週總計</td><td>${money(s.總勝負)}</td><td>${quantityValue(weeklyWash)}</td><td>${money(s.總營業額)}</td>
+            <td>本週總計</td><td class="${s.總勝負 > 0 ? "pos" : s.總勝負 < 0 ? "neg" : ""}">${money(s.總勝負)}</td><td>${quantityValue(weeklyWash)}</td><td class="${s.總營業額 > 0 ? "pos" : s.總營業額 < 0 ? "neg" : ""}">${money(s.總營業額)}</td>
           </tr></tfoot>
         </table>
       </div>
