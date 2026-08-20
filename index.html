@@ -6,7 +6,7 @@
 <title>薪資結算 · PAYROLL</title>
 <script>
 if (location.protocol === "file:") {
-  location.replace("https://at19750919-star.github.io/xjd-payroll/?v=loan-fields-2");
+  location.replace("https://at19750919-star.github.io/xjd-payroll/?v=owner-space");
 }
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -247,10 +247,6 @@ table.pay .intern-subtotal td:first-child{
 
 .rail{min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr);align-content:stretch;gap:18px}
 .daily-card{min-height:0;padding:20px 18px 14px;overflow:visible}
-.daily-title{
-  margin:2px 0 10px;font-family:var(--serif);font-size:15px;font-weight:700;
-  letter-spacing:.28em;color:var(--gold-1);
-}
 .daily-table{width:100%;border-collapse:separate;border-spacing:0}
 .daily-table th{
   padding:7px 5px;text-align:right;border-bottom:1px solid rgba(201,162,90,.58);
@@ -271,7 +267,10 @@ table.pay .intern-subtotal td:first-child{
   color:var(--gold-1);font-weight:700;
 }
 .daily-table tfoot td:first-child{font-family:var(--serif);letter-spacing:.08em}
-.rail-bottom{min-height:0;display:grid;grid-template-columns:1fr;grid-template-rows:1fr 1fr;gap:18px}
+.rail-bottom{
+  min-height:0;display:grid;grid-template-columns:1fr;
+  grid-template-rows:minmax(164px,1.2fr) minmax(144px,.8fr);gap:18px;
+}
 .rail-bottom .gframe{min-height:144px;padding:15px 16px 12px}
 .rail-bottom .mini{height:100%}
 .rail-bottom table.mini td,
@@ -1148,7 +1147,6 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     $("rail").innerHTML = `
       <div class="gframe daily-card">
         <span class="frame-title">Daily Operations</span>
-        <h2 class="daily-title">每日營運</h2>
         <table class="daily-table">
           <thead><tr><th>日期</th><th>勝負</th><th>洗碼<small>點</small></th><th>營業額</th></tr></thead>
           <tbody>${operationRows}</tbody>
