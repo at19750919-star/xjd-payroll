@@ -6,7 +6,7 @@
 <title>薪資結算 · PAYROLL</title>
 <script>
 if (location.protocol === "file:") {
-  location.replace("https://at19750919-star.github.io/xjd-payroll/?v=felt-mark-400");
+  location.replace("https://at19750919-star.github.io/xjd-payroll/?v=latest-week");
 }
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1612,7 +1612,7 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     }
     if (!TABS.length) { renderBootError("試算表裡沒有可用的週分頁"); return; }
     renderConnected();
-    selectWeek(TABS[0]);
+    selectWeek(TABS[TABS.length - 1]);
   })();
 })();
 </script>
