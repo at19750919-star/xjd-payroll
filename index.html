@@ -6,7 +6,7 @@
 <title>薪資結算 · PAYROLL</title>
 <script>
 if (location.protocol === "file:") {
-  location.replace("https://at19750919-star.github.io/xjd-payroll/?v=owner-space");
+  location.replace("https://at19750919-star.github.io/xjd-payroll/?v=felt-mark");
 }
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -170,6 +170,12 @@ h1 small{
 .felt::after{
   content:"";position:absolute;inset:0;opacity:.25;pointer-events:none;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.65' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .35 0'/%3E%3C/filter%3E%3Crect width='90' height='90' filter='url(%23f)'/%3E%3C/svg%3E");
+}
+.felt-mark.crest{
+  position:absolute;left:50%;top:52%;z-index:0;
+  width:clamp(230px,22vw,350px);height:auto;aspect-ratio:1;
+  transform:translate(-50%,-50%);opacity:.045;pointer-events:none;
+  box-shadow:none;mix-blend-mode:screen;filter:saturate(.75) contrast(.92);
 }
 .felt-head{
   display:flex;align-items:center;justify-content:center;gap:20px;flex:none;
@@ -480,6 +486,7 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
 <div class="workspace">
   <section class="pit">
     <div class="felt">
+      <div class="crest felt-mark" aria-hidden="true"></div>
       <div class="felt-head">
         <span class="rule"></span>
         <span class="arc-text">WEEKLY PAYROLL</span>
