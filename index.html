@@ -4,7 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>薪資結算 · PAYROLL</title>
+<script src="payroll_config.js"></script>
 <script>
+// 直接雙擊開(file://)時,瀏覽器會擋掉抓試算表 xlsx 的請求(Origin: null,Google 不給 CORS),
+// 整頁等於是壞的,所以導去線上版。要看本機改動請跑 開啟.bat(用 http://127.0.0.1 就沒這問題)。
 if (location.protocol === "file:") {
   location.replace("https://at19750919-star.github.io/xjd-payroll/?v=latest-week");
 }
@@ -663,7 +666,7 @@ table.hist td.zero{color:var(--txt-dim)}
 
   const $ = (id) => document.getElementById(id);
 
-  let CONFIG = null;             // payroll_config.json(標籤+預設費率,不含機密)
+  let CONFIG = null;             // payroll_config.js(標籤+預設費率,不含機密)
   let TABS = [];                 // 週分頁清單(左到右,不含設定分頁)
   const WEEK_CACHE = {};         // tab -> 原始資料(勝負/洗碼/正式/實習/行政未定)
   const SETTINGS_ROWS = {};      // tab -> rules
@@ -1827,10 +1830,9 @@ table.hist td.zero{color:var(--txt-dim)}
   }
 
   (async function boot() {
-    try {
-      CONFIG = await fetch("payroll_config.json").then((r) => r.json());
-    } catch (err) {
-      renderBootError(`讀不到 payroll_config.json:${err.message}`);
+    CONFIG = window.PAYROLL_CONFIG;
+    if (!CONFIG) {
+      renderBootError("讀不到 payroll_config.js(要跟 index.html 放在同一層)");
       return;
     }
     renderLoading("讀取試算表分頁清單…");

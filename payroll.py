@@ -1,5 +1,5 @@
 """
-週薪資結算。靠 M 欄標籤定位(不寫死行號),算式全在 payroll_config.json。
+週薪資結算。靠 M 欄標籤定位(不寫死行號),算式全在 payroll_config.js。
 
 唯讀:只會從試算表讀資料,絕不寫回。只印終端機報表——
 即時網頁版(index.html)自己直接讀寫試算表,不靠這支腳本產生。
@@ -22,8 +22,11 @@ SCAN_RANGE = "M1:V60"          # 彙總區掃描範圍(M 欄是標籤欄)
 
 
 def load_config():
-    cfg = json.loads((BASE / "payroll_config.json").read_text(encoding="utf-8"))
-    return cfg
+    # 設定檔包成 JS(window.PAYROLL_CONFIG = {...};)好讓 index.html 用 <script> 載入,
+    # 這裡把包裝剝掉再當 JSON 解析,兩邊共用同一份設定,不會分岔。
+    raw = (BASE / "payroll_config.js").read_text(encoding="utf-8")
+    body = raw.split("=", 1)[1].strip().rstrip(";").strip()
+    return json.loads(body)
 
 
 def get_sheets():
@@ -292,7 +295,7 @@ def main():
         r = compute(grid, loc, cfg)
     except Bail as e:
         print(f"✗ 定位失敗:{e}")
-        print("  → 這週彙總區的版型跟 payroll_config.json 的『標籤』對不上,"
+        print("  → 這週彙總區的版型跟 payroll_config.js 的『標籤』對不上,"
               "請確認標籤文字或補上缺的區塊,不要硬跑。")
         sys.exit(1)
 

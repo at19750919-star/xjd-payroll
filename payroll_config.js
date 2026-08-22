@@ -1,4 +1,7 @@
-{
+// 薪資計算設定。改規則只動這個檔,不要改 payroll.py。
+// 包成 JS 而不是純 JSON,是為了讓 index.html 用 <script> 載入,
+// 這樣直接雙擊 html(file://)也能開,不必架伺服器。payroll.py 讀同一個檔。
+window.PAYROLL_CONFIG = {
   "_說明": "薪資計算設定檔。改規則只動這個檔,不要改 payroll.py。",
 
   "時薪": 650,
@@ -46,4 +49,4 @@
   },
 
   "退水每點": 200
-}
+};
