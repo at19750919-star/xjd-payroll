@@ -31,17 +31,31 @@ if (location.protocol === "file:") {
   --sans:"Noto Sans TC",sans-serif;
   --disp:"Cinzel","Noto Serif TC",serif;
 }
+:root{--dw:1790;--dh:892;--s:1}
 *{margin:0;padding:0;box-sizing:border-box}
 html{background:var(--ink)}
 body{
   font-family:var(--sans);color:var(--txt);height:100vh;overflow:hidden;
-  display:flex;flex-direction:column;
   background:
     radial-gradient(1200px 500px at 50% -8%, rgba(38,84,68,.45), transparent 60%),
     radial-gradient(900px 700px at 88% 110%, rgba(26,54,66,.35), transparent 60%),
     linear-gradient(180deg,#0a0e10 0%, #07090b 100%);
   background-attachment:fixed;
+}
+#stage{
+  display:flex;flex-direction:column;
   padding:0 clamp(12px,2.2vw,34px) 12px;
+}
+/* .fit 模式:內容永遠以 --dw x --dh 排版,再整體等比縮放貼合視窗,比例固定不變 */
+html.fit,html.fit body{height:100vh;overflow:hidden}
+/* 量測用:高度放開,讓內容自然撐開好取得這一週真正需要的設計高度 */
+html.fit.measuring #stage{height:auto}
+html.fit #stage{
+  position:absolute;left:50%;top:50%;
+  width:calc(var(--dw)*1px);height:calc(var(--dh)*1px);
+  transform-origin:50% 50%;
+  transform:translate(-50%,-50%) scale(var(--s));
+  padding:0 34px 12px;
 }
 body::after{
   content:"";position:fixed;inset:0;pointer-events:none;z-index:999;opacity:.05;
@@ -74,6 +88,7 @@ h1 small{
   letter-spacing:.5em;color:var(--txt-dim);-webkit-text-fill-color:var(--txt-dim);margin-top:2px;
 }
 .tabs{display:flex;gap:8px;overflow-x:auto;max-width:40vw}
+html.fit .tabs{max-width:716px}
 .tabs button{
   appearance:none;cursor:pointer;font-family:var(--disp);font-weight:700;
   font-size:13px;letter-spacing:.18em;text-indent:.18em;white-space:nowrap;
@@ -167,6 +182,7 @@ h1 small{
   padding:11px clamp(28px,4.4vw,64px) 12px;
   overflow:clip;
 }
+html.fit .felt{padding:11px 64px 12px}
 .felt::after{
   content:"";position:absolute;inset:0;opacity:.25;pointer-events:none;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='90' height='90'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.65' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .35 0'/%3E%3C/filter%3E%3Crect width='90' height='90' filter='url(%23f)'/%3E%3C/svg%3E");
@@ -422,7 +438,60 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
   width:min(360px,calc(100vw - 32px));padding:26px 26px 22px;
   opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;
 }
+html.fit .felt-mark.crest{width:560px}
+html.fit .loan-pop{width:360px}
 .loan-pop.on{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
+
+/* ============ 借支明細 ============ */
+.hist-pop{
+  position:fixed;z-index:31;left:50%;top:50%;transform:translate(-50%,-46%);
+  width:1180px;max-width:calc(100vw - 40px);max-height:78vh;
+  display:flex;flex-direction:column;padding:22px 26px 18px;
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;
+}
+html.fit .hist-pop{width:1180px;max-width:calc(var(--dw)*1px - 120px);max-height:calc(var(--dh)*0.82px)}
+.hist-pop.on{opacity:1;pointer-events:auto;transform:translate(-50%,-50%)}
+.hist-head{display:flex;align-items:baseline;gap:16px;flex:none;margin-bottom:16px}
+.hist-head h2{
+  font-family:var(--disp);font-size:19px;font-weight:700;letter-spacing:.1em;color:var(--gold-1);
+}
+.hist-head .note{font-size:11px;letter-spacing:.06em;color:var(--txt-dim);margin-left:auto;margin-right:16px}
+.hist-head button{
+  appearance:none;cursor:pointer;flex:none;
+  font-family:var(--disp);font-weight:700;font-size:12px;letter-spacing:.2em;text-indent:.2em;
+  padding:8px 18px;border-radius:999px;
+  border:1px solid #2a3230;background:rgba(13,20,23,.7);color:var(--txt-dim);transition:.25s;
+}
+.hist-head button:hover{color:var(--gold-1);border-color:#8a6a2f}
+.hist-head button:focus-visible{outline:1px solid var(--gold-1);outline-offset:3px}
+.hist-body{overflow:auto;min-height:0;flex:1;padding-right:6px}
+.hist-person{margin-bottom:22px}
+.hist-person:last-child{margin-bottom:4px}
+.hist-name{
+  display:flex;align-items:baseline;gap:14px;
+  padding-bottom:6px;margin-bottom:6px;border-bottom:1px solid rgba(217,181,104,.28);
+}
+.hist-name .n{font-family:var(--sans);font-weight:600;font-size:16px;color:var(--txt)}
+.hist-name .sum{margin-left:auto;font-size:12px;color:var(--txt-dim);letter-spacing:.04em}
+.hist-name .sum b{font-family:var(--disp);font-weight:700;font-size:14px;color:var(--gold-1);margin-left:5px}
+table.hist{width:100%;border-collapse:separate;border-spacing:0}
+table.hist th{
+  font-family:var(--serif);font-size:11px;font-weight:600;letter-spacing:.2em;
+  color:var(--gold-2);text-align:right;padding:4px 10px 6px;white-space:nowrap;
+}
+table.hist th:first-child,table.hist td:first-child{text-align:left;padding-left:2px}
+table.hist td{
+  padding:5px 10px;text-align:right;white-space:nowrap;
+  font-family:var(--disp);font-weight:500;font-size:14px;
+  font-variant-numeric:tabular-nums;color:var(--txt);
+  border-top:1px solid rgba(255,255,255,.05);
+}
+table.hist td.d{font-family:var(--sans);font-size:13px;color:var(--txt-dim)}
+table.hist td.add{color:var(--banker)}
+table.hist td.pay{color:var(--ok)}
+table.hist td.bal{font-weight:700;color:var(--gold-1)}
+table.hist td.zero{color:var(--txt-dim)}
+.hist-empty{font-size:13px;color:var(--txt-dim);padding:20px 2px}
 .loan-pop h2{
   font-family:var(--disp);font-size:19px;font-weight:700;letter-spacing:.1em;
   color:var(--gold-1);margin-bottom:20px;
@@ -453,25 +522,27 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
 }
 
 @media (max-width:1450px){
-  html,body{height:auto;overflow:auto}
-  .workspace{grid-template-columns:1fr}
-  .pit{min-height:620px}
-  .rail{grid-template-columns:minmax(0,1.35fr) minmax(360px,.65fr);grid-template-rows:auto}
+  html:not(.fit),html:not(.fit) body{height:auto;overflow:auto}
+  html:not(.fit) .workspace{grid-template-columns:1fr}
+  html:not(.fit) .pit{min-height:620px}
+  html:not(.fit) .rail{grid-template-columns:minmax(0,1.35fr) minmax(360px,.65fr);grid-template-rows:auto}
 }
 @media (max-width:900px){
-  html,body{height:auto;overflow:auto}
-  .workspace{display:block}
-  .rail{display:grid;grid-template-columns:1fr;margin-top:18px}
-  .rail-bottom{grid-template-columns:1fr}
-  .pit{border-radius:40px/28px}
-  .felt{border-radius:34px/24px;padding:14px 18px 16px}
-  .foot{grid-template-columns:1fr;gap:16px}
-  .close .cell.net-cell{text-align:left}
+  html:not(.fit),html:not(.fit) body{height:auto;overflow:auto}
+  html:not(.fit) .workspace{display:block}
+  html:not(.fit) .rail{display:grid;grid-template-columns:1fr;margin-top:18px}
+  html:not(.fit) .rail-bottom{grid-template-columns:1fr}
+  html:not(.fit) .pit{border-radius:40px/28px}
+  html:not(.fit) .felt{border-radius:34px/24px;padding:14px 18px 16px}
+  html:not(.fit) .foot{grid-template-columns:1fr;gap:16px}
+  html:not(.fit) .close .cell.net-cell{text-align:left}
 }
 @media (prefers-reduced-motion:reduce){.loan-scrim,.loan-pop{transition:none}}
 </style>
 </head>
 <body>
+
+<div id="stage">
 
 <header class="gframe">
   <div class="title">
@@ -480,6 +551,7 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
   </div>
   <nav class="tabs" id="tabs"></nav>
   <button type="button" class="print-all-btn" id="print-all">列印薪資單</button>
+  <button type="button" class="print-all-btn" id="loan-history">借支明細</button>
   <div class="nums" id="summary"></div>
   <div class="auth" id="auth"></div>
 </header>
@@ -516,6 +588,17 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
   </div>
 </aside>
 
+<div class="loan-scrim" id="hist-scrim"></div>
+<aside class="gframe hist-pop" id="hist-pop" aria-hidden="true">
+  <span class="frame-title">Loan Ledger</span>
+  <div class="hist-head">
+    <h2>借支明細</h2>
+    <span class="note" id="hist-note"></span>
+    <button type="button" id="hist-close">關閉</button>
+  </div>
+  <div class="hist-body" id="hist-body"></div>
+</aside>
+
 <div class="loan-scrim" id="other-scrim"></div>
 <aside class="gframe loan-pop" id="other-pop" aria-hidden="true">
   <span class="frame-title">Other</span>
@@ -527,6 +610,47 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     <button type="button" id="other-close">關閉</button>
   </div>
 </aside>
+
+</div><!-- /#stage -->
+
+<script>
+/* 等比縮放:算出畫布要縮多少才塞得進視窗,任何螢幕尺寸版面比例都一樣 */
+(() => {
+  const root = document.documentElement;
+  const FIT_MIN = 900;            // 視窗比這窄就放棄等比縮放,改用會換行的流式版面
+  const BASE_H = 892;              // 設計高度下限
+  const stage = document.getElementById('stage');
+
+  // 這一週資料要多高就用多高,再整個等比縮放,所以永遠不會被截斷
+  const measure = () => {
+    root.style.setProperty('--dh', BASE_H);
+    root.classList.add('measuring');
+    const need = Math.ceil(stage.scrollHeight);
+    root.classList.remove('measuring');
+    root.style.setProperty('--dh', Math.max(BASE_H, need));
+  };
+
+  const fit = () => {
+    const on = innerWidth >= FIT_MIN;
+    root.classList.toggle('fit', on);
+    if (!on) { root.style.removeProperty('--s'); root.style.removeProperty('--dh'); return; }
+    measure();
+    const cs = getComputedStyle(root);
+    const dw = parseFloat(cs.getPropertyValue('--dw'));
+    const dh = parseFloat(cs.getPropertyValue('--dh'));
+    root.style.setProperty('--s', Math.min(innerWidth / dw, innerHeight / dh));
+  };
+
+  let t = 0;
+  const schedule = () => { clearTimeout(t); t = setTimeout(fit, 60); };
+  fit();
+  addEventListener('resize', schedule);
+  addEventListener('orientationchange', schedule);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fit);
+  // 換週次 / 改數字後版面會重畫,重新量一次
+  new MutationObserver(schedule).observe(stage, {childList:true, subtree:true, characterData:true});
+})();
+</script>
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
@@ -712,10 +836,14 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
   }
 
   // ---------- 薪資設定分頁(使用者改過的值,換電腦也看得到) ----------
+  function settingsTabKey(tab) {
+    const t = String(tab == null ? "" : tab);
+    return /^\d{1,4}$/.test(t) ? t.padStart(4, "0") : t;
+  }
   async function loadAllSettings() {
     const j = await apiGet("settings");
     (j.rows || []).forEach((r) => {
-      try { SETTINGS_ROWS[r.tab] = JSON.parse(r.rules); } catch {}
+      try { SETTINGS_ROWS[settingsTabKey(r.tab)] = JSON.parse(r.rules); } catch {}
     });
   }
   async function saveWeekSettings(tab, rules) {
@@ -1398,6 +1526,117 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
   const otherPop = $("other-pop");
   const otherScrim = $("other-scrim");
   let otherName = "";
+  // ---------- 借支明細(0810 起,逐週的借出/還款/餘額) ----------
+  const LOAN_HISTORY_FROM = "0810";
+  const histPop = $("hist-pop");
+  const histScrim = $("hist-scrim");
+
+  // 跟 applyHours / applyTitles 一樣,但作用在指定 data 上,不動全域 DATA
+  function applyHoursTo(data, cfg) {
+    const hours = cfg && cfg.時數;
+    if (!hours) return;
+    data.正式.concat(data.實習 || []).forEach((p) => {
+      if (hours[p.名字] != null && Number.isFinite(Number(hours[p.名字]))) p.時數 = Number(hours[p.名字]);
+    });
+  }
+  function applyTitlesTo(data, cfg) {
+    const titles = cfg && cfg.職稱;
+    (data.實習 || []).forEach((p) => { p.職稱 = (titles && titles[p.名字]) || ""; });
+  }
+
+  function weekLabel(tab) {
+    const m = /^(\d{2})(\d{2})$/.exec(String(tab));
+    return m ? `${Number(m[1])}/${Number(m[2])}` : String(tab);
+  }
+
+  // 逐週跑一次跟畫面上完全相同的 compute(),所以還款金額就是當週實際扣的錢
+  async function buildLoanLedger() {
+    const from = TABS.indexOf(LOAN_HISTORY_FROM);
+    const tabs = TABS.slice(from < 0 ? 0 : from);
+    const people = new Map();
+    for (const tab of tabs) {
+      const data = WEEK_CACHE[tab] || (WEEK_CACHE[tab] = await loadWeekData(tab));
+      moveForcedInterns(data);
+      ensureAdminPeople(data);
+      const rules = Object.assign(defaultRules(CONFIG), SETTINGS_ROWS[tab] || {});
+      if (!rules.借支) rules.借支 = {};
+      normalizeLoanSchema(rules);
+      (rules.額外實習 || []).forEach((name) => {
+        if (!data.實習.some((p) => p.名字 === name)) data.實習.push({ 名字: name, 時數: 0, 虛擬: true });
+      });
+      applyHoursTo(data, rules);
+      applyTitlesTo(data, rules);
+      const s = compute(rules, data);
+      const loans = rules.借支 || {};
+      s.正式.concat(s.實習).forEach((p) => {
+        const rec = loans[p.名字] || {};
+        const 期初 = Math.max(0, Number(rec.餘額) || 0);
+        const 借出 = Math.max(0, Number(rec.新增) || 0);
+        const 還款 = Math.max(0, Number(p.還款) || 0);
+        const 期末 = Math.max(0, Number(p.總欠款) || 0);
+        if (!期初 && !借出 && !還款 && !期末) return;
+        const key = loanNameKey(p.名字);
+        if (!people.has(key)) people.set(key, { name: p.名字, rows: [] });
+        const entry = people.get(key);
+        entry.name = p.名字;                       // 名字有改過就用最新的
+        entry.rows.push({ tab, 期初, 借出, 還款, 期末 });
+      });
+    }
+    return { tabs, people };
+  }
+
+  function renderLoanLedger(ledger) {
+    const list = [...ledger.people.values()].filter((e) => e.rows.length);
+    if (!list.length) return `<p class="hist-empty">${LOAN_HISTORY_FROM} 起沒有任何借支紀錄。</p>`;
+    return list.map((e) => {
+      const 借出總 = e.rows.reduce((s, r) => s + r.借出, 0);
+      const 還款總 = e.rows.reduce((s, r) => s + r.還款, 0);
+      const 目前 = e.rows[e.rows.length - 1].期末;
+      const body = e.rows.map((r) => `
+        <tr>
+          <td class="d">${weekLabel(r.tab)} 起</td>
+          <td class="${r.期初 ? "" : "zero"}">${r.期初 ? money(r.期初) : "—"}</td>
+          <td class="${r.借出 ? "add" : "zero"}">${r.借出 ? "+" + money(r.借出) : "—"}</td>
+          <td class="${r.還款 ? "pay" : "zero"}">${r.還款 ? "−" + money(r.還款) : "—"}</td>
+          <td class="bal">${money(r.期末)}</td>
+        </tr>`).join("");
+      return `
+        <div class="hist-person">
+          <div class="hist-name">
+            <span class="n">${e.name}</span>
+            <span class="sum">借出<b>${money(借出總)}</b>　已還<b>${money(還款總)}</b>　尚欠<b>${money(目前)}</b></span>
+          </div>
+          <table class="hist">
+            <thead><tr><th>日期</th><th>期初欠款</th><th>借出</th><th>還款</th><th>期末欠款</th></tr></thead>
+            <tbody>${body}</tbody>
+          </table>
+        </div>`;
+    }).join("");
+  }
+
+  async function openLoanHistory() {
+    histPop.classList.add("on");
+    histScrim.classList.add("on");
+    histPop.setAttribute("aria-hidden", "false");
+    $("hist-note").textContent = "";
+    $("hist-body").innerHTML = `<p class="hist-empty">讀取各週資料中…</p>`;
+    try {
+      const ledger = await buildLoanLedger();
+      $("hist-body").innerHTML = renderLoanLedger(ledger);
+      const first = ledger.tabs[0], last = ledger.tabs[ledger.tabs.length - 1];
+      $("hist-note").textContent = ledger.tabs.length
+        ? `${weekLabel(first)} – ${weekLabel(last)}　日期為該筆所屬週次的起始日`
+        : "";
+    } catch (err) {
+      $("hist-body").innerHTML = `<p class="hist-empty">讀取失敗(抓不到就停,不猜):${err.message}</p>`;
+    }
+  }
+  function closeLoanHistory() {
+    histPop.classList.remove("on");
+    histScrim.classList.remove("on");
+    histPop.setAttribute("aria-hidden", "true");
+  }
+
   function openOther(name) {
     otherName = name;
     const rec = ((saved.其他) || {})[name] || {};
@@ -1545,6 +1784,9 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     persist();
     closeLoan();
   };
+  $("loan-history").onclick = openLoanHistory;
+  $("hist-close").onclick = closeLoanHistory;
+  histScrim.onclick = closeLoanHistory;
   $("other-close").onclick = closeOther;
   otherScrim.onclick = closeOther;
   $("other-save").onclick = () => {
@@ -1562,12 +1804,14 @@ button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
     if (e.key !== "Escape") return;
     if (loanPop.classList.contains("on")) closeLoan();
     if (otherPop.classList.contains("on")) closeOther();
+    if (histPop.classList.contains("on")) closeLoanHistory();
   });
   $("tabs").addEventListener("click", (e) => {
     const b = e.target.closest("button[data-tab]");
     if (!b || (DATA && b.dataset.tab === DATA.tab)) return;
     closeLoan();
     closeOther();
+    closeLoanHistory();
     selectWeek(b.dataset.tab);
   });
 
