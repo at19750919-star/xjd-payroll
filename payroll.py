@@ -8,7 +8,7 @@
   python payroll.py                 # 最新分頁,印在終端機
   python payroll.py 0810            # 指定分頁
 """
-import sys, json
+import re, sys, json
 from pathlib import Path
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -123,6 +123,8 @@ def collect_people(grid, head_idx, end_idx, total_col):
     for i in range(head_idx + 2, end_idx):
         name = label_of(grid[i])
         if not name:
+            continue
+        if re.match(r"(?i)^(https?://|www\.)", name):   # M 欄混進來的網址不是人
             continue
         # 時數一律自己加週一~週日,不看「合計」欄(合計欄常常沒跟著日資料更新)
         hours = sum(num(c) for c in grid[i][1:total_col])

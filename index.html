@@ -834,13 +834,20 @@ table.hist td.zero{color:var(--txt-dim)}
       return sum + (v == null || v === "" || !Number.isFinite(n) ? 0 : n);
     }, 0);
   }
+  // 實習區沒有結尾標記,M 欄後面隨手貼的網址之類的會被當成人抓進來,濾掉
+  function isRealPerson(name) {
+    const n = String(name || "").trim();
+    return !!n && !/^(https?:\/\/|www\.)/i.test(n);
+  }
   async function loadWeekData(tab) {
     const [week, dailyHours, dailyOperations] = await Promise.all([
       apiGet("week", { tab }),
       loadDailyHours(tab),
       loadDailyOperations(tab),
     ]);
-    (week.正式 || []).concat(week.實習 || []).forEach((person) => {
+    week.正式 = (week.正式 || []).filter((p) => isRealPerson(p.名字));
+    week.實習 = (week.實習 || []).filter((p) => isRealPerson(p.名字));
+    week.正式.concat(week.實習).forEach((person) => {
       const daily = dailyHours[dailyNameKey(person.名字)] || {};
       person.每日時數 = daily.values || Array(7).fill(null);
       person.每日備註 = daily.notes || Array(7).fill("");
