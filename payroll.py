@@ -124,9 +124,8 @@ def collect_people(grid, head_idx, end_idx, total_col):
         name = label_of(grid[i])
         if not name:
             continue
-        hours = num(grid[i][total_col]) if total_col < len(grid[i]) else 0.0
-        if hours == 0:                       # 合計欄空的就自己加日資料
-            hours = sum(num(c) for c in grid[i][1:total_col])
+        # 時數一律自己加週一~週日,不看「合計」欄(合計欄常常沒跟著日資料更新)
+        hours = sum(num(c) for c in grid[i][1:total_col])
         people.append({"名字": name, "時數": hours, "列": i})
     return people
 

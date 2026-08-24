@@ -477,12 +477,13 @@ html.fit .hist-pop{width:1180px;max-width:calc(var(--dw)*1px - 120px);max-height
 .hist-name .n{font-family:var(--sans);font-weight:600;font-size:16px;color:var(--txt)}
 .hist-name .sum{margin-left:auto;font-size:12px;color:var(--txt-dim);letter-spacing:.04em}
 .hist-name .sum b{font-family:var(--disp);font-weight:700;font-size:14px;color:var(--gold-1);margin-left:5px}
-table.hist{width:100%;border-collapse:separate;border-spacing:0}
+table.hist{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed}
 table.hist th{
   font-family:var(--serif);font-size:11px;font-weight:600;letter-spacing:.2em;
   color:var(--gold-2);text-align:right;padding:4px 10px 6px;white-space:nowrap;
 }
-table.hist th:first-child,table.hist td:first-child{text-align:left;padding-left:2px}
+table.hist th:first-child,table.hist td:first-child{text-align:left;padding-left:2px;width:20%}
+table.hist th{padding-right:calc(10px - .2em)}  /* 抵掉 letter-spacing 在尾字後多出的空白 */
 table.hist td{
   padding:5px 10px;text-align:right;white-space:nowrap;
   font-family:var(--disp);font-weight:500;font-size:14px;
@@ -491,6 +492,7 @@ table.hist td{
 }
 table.hist td.d{font-family:var(--sans);font-size:13px;color:var(--txt-dim)}
 table.hist td.add{color:var(--banker)}
+table.hist td .dt{display:block;font-family:var(--sans);font-size:10px;letter-spacing:.04em;color:var(--txt-dim)}
 table.hist td.pay{color:var(--ok)}
 table.hist td.bal{font-weight:700;color:var(--gold-1)}
 table.hist td.zero{color:var(--txt-dim)}
@@ -501,13 +503,14 @@ table.hist td.zero{color:var(--txt-dim)}
 }
 .f{margin-bottom:16px}
 .f label{display:block;font-size:10px;letter-spacing:.3em;color:var(--txt-dim);margin-bottom:6px}
-.loan-pop input[type=number],.loan-pop input[type=text]{
+.loan-pop input[type=number],.loan-pop input[type=text],.loan-pop input[type=date]{
   width:100%;background:rgba(0,0,0,.35);border:1px solid #2a3230;
   color:var(--txt);font:700 19px var(--disp);padding:8px 10px;
   font-variant-numeric:tabular-nums;appearance:textfield;-moz-appearance:textfield;
 }
 .loan-pop input[type=text]{font-family:var(--sans);font-weight:500;font-size:15px}
-.loan-pop input[type=number]:focus,.loan-pop input[type=text]:focus{border-color:#c9a25a;box-shadow:0 0 10px rgba(212,176,106,.25);outline:0}
+.loan-pop input[type=date]{font-size:16px;color-scheme:dark}
+.loan-pop input[type=number]:focus,.loan-pop input[type=text]:focus,.loan-pop input[type=date]:focus{border-color:#c9a25a;box-shadow:0 0 10px rgba(212,176,106,.25);outline:0}
 .loan-pop input[type=number]::-webkit-outer-spin-button,
 .loan-pop input[type=number]::-webkit-inner-spin-button{appearance:none;-webkit-appearance:none;margin:0}
 .loan-pop .row{display:flex;gap:10px;margin-top:22px}
@@ -584,6 +587,7 @@ table.hist td.zero{color:var(--txt-dim)}
   <h2 id="loan-who"></h2>
   <div class="f"><label>欠款金額</label><input id="loan-bal" type="number" min="0" step="100"></div>
   <div class="f"><label>新增金額</label><input id="loan-add" type="number" min="0" step="100"></div>
+  <div class="f"><label>借款日期</label><input id="loan-add-date" type="date"></div>
   <div class="f"><label>固定還款金額</label><input id="loan-week" type="number" min="0" step="100"></div>
   <div class="row">
     <button type="button" class="pri" id="loan-save">儲存</button>
@@ -823,6 +827,13 @@ table.hist td.zero{color:var(--txt-dim)}
       };
     });
   }
+  // 時數只認週一~週日那七格,試算表的「合計」欄一律不採用
+  function sumDailyHours(values) {
+    return (values || []).slice(0, 7).reduce((sum, v) => {
+      const n = Number(v);
+      return sum + (v == null || v === "" || !Number.isFinite(n) ? 0 : n);
+    }, 0);
+  }
   async function loadWeekData(tab) {
     const [week, dailyHours, dailyOperations] = await Promise.all([
       apiGet("week", { tab }),
@@ -833,6 +844,7 @@ table.hist td.zero{color:var(--txt-dim)}
       const daily = dailyHours[dailyNameKey(person.名字)] || {};
       person.每日時數 = daily.values || Array(7).fill(null);
       person.每日備註 = daily.notes || Array(7).fill("");
+      person.時數 = sumDailyHours(person.每日時數);
     });
     week.每日營運 = dailyOperations;
     return week;
@@ -954,13 +966,6 @@ table.hist td.zero{color:var(--txt-dim)}
     const previousData = clone(WEEK_CACHE[previousTab] || await loadWeekData(previousTab));
     moveForcedInterns(previousData);
     ensureAdminPeople(previousData);
-    const savedHours = previousRules.時數 || {};
-    previousData.正式.concat(previousData.實習 || []).forEach((person) => {
-      if (savedHours[person.名字] != null && Number.isFinite(Number(savedHours[person.名字]))) {
-        person.時數 = Number(savedHours[person.名字]);
-      }
-    });
-
     const previousSnapshot = compute(previousRules, previousData);
     const previousBalances = {};
     const previousFixedPayments = {};
@@ -1029,6 +1034,7 @@ table.hist td.zero{color:var(--txt-dim)}
     const hours = cfg && cfg.時數;
     if (!hours) return;
     DATA.正式.concat(DATA.實習 || []).forEach((p) => {
+      if (!p.虛擬) return;                    // 表上有的人一律用每日相加,存過的舊值不再套用
       if (hours[p.名字] != null && Number.isFinite(Number(hours[p.名字]))) {
         p.時數 = Number(hours[p.名字]);
       }
@@ -1040,7 +1046,7 @@ table.hist td.zero{color:var(--txt-dim)}
   }
   function snapshotHours() {
     const hours = {};
-    DATA.正式.concat(DATA.實習 || []).forEach((p) => { hours[p.名字] = p.時數; });
+    DATA.正式.concat(DATA.實習 || []).forEach((p) => { if (p.虛擬) hours[p.名字] = p.時數; });
     saved.時數 = hours;
   }
   function snapshotTitles() {
@@ -1329,7 +1335,7 @@ table.hist td.zero{color:var(--txt-dim)}
             <tr>
               <td class="name"><button type="button" class="who" data-name="${p.名字}">${p.名字}</button></td>
               ${dayCells(p)}
-              <td><button type="button" class="adj" data-edit="hours" data-who="${p.名字}">${p.時數.toFixed(1)}</button></td>
+              <td>${p.時數.toFixed(1)}</td>
               <td>${pct(p.比例)}</td>
               <td>${money(p.時薪金額)}</td>
               <td>${money(p.獎金)}</td>
@@ -1364,7 +1370,7 @@ table.hist td.zero{color:var(--txt-dim)}
             <tr class="intern-row">
               <td class="name">${p.虛擬 ? `<button type="button" class="adj" data-edit="internName" data-who="${p.名字}">${p.名字}</button>` : `<button type="button" class="who" data-name="${p.名字}">${p.名字}</button>`}</td>
               ${dayCells(p)}
-              <td><button type="button" class="adj" data-edit="hours" data-who="${p.名字}">${p.時數.toFixed(1)}</button></td>
+              <td>${p.虛擬 ? `<button type="button" class="adj" data-edit="hours" data-who="${p.名字}">${p.時數.toFixed(1)}</button>` : p.時數.toFixed(1)}</td>
               <td></td>
               <td>${p.時薪金額 == null ? "0" : money(p.時薪金額)}</td>
               <td></td>
@@ -1513,6 +1519,7 @@ table.hist td.zero{color:var(--txt-dim)}
     $("loan-who").textContent = name;
     $("loan-bal").value = rec.餘額 || "";
     $("loan-add").value = rec.新增 || "";
+    $("loan-add-date").value = rec.新增日期 || todayISO();
     $("loan-week").value = rec.固定還款 || "";
     loanPop.classList.add("on");
     loanScrim.classList.add("on");
@@ -1539,12 +1546,24 @@ table.hist td.zero{color:var(--txt-dim)}
     const hours = cfg && cfg.時數;
     if (!hours) return;
     data.正式.concat(data.實習 || []).forEach((p) => {
+      if (!p.虛擬) return;
       if (hours[p.名字] != null && Number.isFinite(Number(hours[p.名字]))) p.時數 = Number(hours[p.名字]);
     });
   }
   function applyTitlesTo(data, cfg) {
     const titles = cfg && cfg.職稱;
     (data.實習 || []).forEach((p) => { p.職稱 = (titles && titles[p.名字]) || ""; });
+  }
+
+  // 用本地時區算今天,不用 toISOString(那個是 UTC,晚上會跳成隔天)
+  function todayISO() {
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+  function dateTag(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
+    return m ? `<span class="dt">${Number(m[2])}/${Number(m[3])} 借</span>` : "";
   }
 
   function weekLabel(tab) {
@@ -1575,6 +1594,7 @@ table.hist td.zero{color:var(--txt-dim)}
         const rec = loans[p.名字] || {};
         const 期初 = Math.max(0, Number(rec.餘額) || 0);
         const 借出 = Math.max(0, Number(rec.新增) || 0);
+        const 借出日 = 借出 ? String(rec.新增日期 || "") : "";
         const 還款 = Math.max(0, Number(p.還款) || 0);
         const 期末 = Math.max(0, Number(p.總欠款) || 0);
         if (!期初 && !借出 && !還款 && !期末) return;
@@ -1582,7 +1602,7 @@ table.hist td.zero{color:var(--txt-dim)}
         if (!people.has(key)) people.set(key, { name: p.名字, rows: [] });
         const entry = people.get(key);
         entry.name = p.名字;                       // 名字有改過就用最新的
-        entry.rows.push({ tab, 期初, 借出, 還款, 期末 });
+        entry.rows.push({ tab, 期初, 借出, 借出日, 還款, 期末 });
       });
     }
     return { tabs, people };
@@ -1599,7 +1619,7 @@ table.hist td.zero{color:var(--txt-dim)}
         <tr>
           <td class="d">${weekLabel(r.tab)} 起</td>
           <td class="${r.期初 ? "" : "zero"}">${r.期初 ? money(r.期初) : "—"}</td>
-          <td class="${r.借出 ? "add" : "zero"}">${r.借出 ? "+" + money(r.借出) : "—"}</td>
+          <td class="${r.借出 ? "add" : "zero"}">${r.借出 ? "+" + money(r.借出) + dateTag(r.借出日) : "—"}</td>
           <td class="${r.還款 ? "pay" : "zero"}">${r.還款 ? "−" + money(r.還款) : "—"}</td>
           <td class="bal">${money(r.期末)}</td>
         </tr>`).join("");
@@ -1703,7 +1723,7 @@ table.hist td.zero{color:var(--txt-dim)}
       const name = adj.dataset.who;
       const p = DATA.正式.find((x) => x.名字 === name)
         || (DATA.實習 || []).find((x) => x.名字 === name);
-      if (!p) return;
+      if (!p || !p.虛擬) return;              // 表上有的人時數由每日相加,不開放手改
       startEdit(adj, String(p.時數), (v) => {
         const n = numOr(v, p.時數);
         p.時數 = n < 0 ? 0 : n;
@@ -1768,15 +1788,18 @@ table.hist td.zero{color:var(--txt-dim)}
     if (!loanName) return;
     const 餘額 = Number($("loan-bal").value);
     const 新增 = Number($("loan-add").value);
+    const 新增日期 = $("loan-add-date").value || "";
     const 固定還款 = Number($("loan-week").value);
     const loans = clone((saved.借支) || {});
     const existing = loans[loanName] || {};
     const 本週還款 = Math.max(0, Number(existing.本週還款) || 0);
     if ((餘額 || 0) || (新增 || 0) || (固定還款 || 0) || 本週還款) {
+      const 借出額 = Number.isFinite(新增) ? Math.max(0, 新增) : 0;
       loans[loanName] = {
         ...existing,
         餘額: Number.isFinite(餘額) ? 餘額 : 0,
-        新增: Number.isFinite(新增) ? Math.max(0, 新增) : 0,
+        新增: 借出額,
+        新增日期: 借出額 ? (新增日期 || todayISO()) : "",
         固定還款: Number.isFinite(固定還款) ? Math.max(0, 固定還款) : 0,
         本週還款,
       };
