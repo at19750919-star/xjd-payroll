@@ -715,7 +715,9 @@ table.hist td.zero{color:var(--txt-dim)}
 
   async function listTabs() {
     const j = await apiGet("tabs");
-    return j.tabs;
+    // API 回傳的是新到舊,但這裡到處都假設「左到右 = 舊到新」:
+    // 開頁面要選 TABS[last]、借支承接要抓 TABS[index-1] 當上一週。所以自己排一次。
+    return (j.tabs || []).slice().sort((a, b) => String(a).localeCompare(String(b)));
   }
   function dailyNameKey(name) {
     return String(name || "").replace(/\s+/g, "").toLowerCase();
