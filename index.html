@@ -355,16 +355,18 @@ table.pay .intern-subtotal td:first-child{
   border:1px solid rgba(217,181,104,.7);background:rgba(10,15,16,.72);
   color:var(--gold-1);font:700 12px/1 var(--sans);letter-spacing:.14em;
   box-shadow:inset 0 0 12px rgba(217,181,104,.06);transition:.18s;
+  text-decoration:none;display:inline-flex;align-items:center;
 }
 .print-all-btn:hover{border-color:var(--gold-1);background:rgba(217,181,104,.12);color:#fff3d0}
 .print-all-btn:focus-visible{outline:1px solid var(--gold-1);outline-offset:3px}
 .pay-slip-print{display:none}
+.loan-print{display:none}
 
 @media print{
   @page{size:A4 portrait;margin:7mm}
   html,body{width:auto;height:auto!important;overflow:visible!important;background:#fff!important}
   body{display:block!important;padding:0!important;color:#111!important}
-  body::after,body > *:not(.pay-slip-print){display:none!important}
+  body::after,body > *:not(.pay-slip-print):not(.loan-print){display:none!important}
   .pay-slip-print{
     display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));
     grid-template-rows:repeat(4,66mm);width:196mm;margin:0 auto;
@@ -387,6 +389,25 @@ table.pay .intern-subtotal td:first-child{
     margin-top:auto;padding-top:2.5mm;border-top:1px solid #222;
     font-size:12pt;font-weight:900;
   }
+
+  body.printing-loan .pay-slip-print{display:none!important}
+  body.printing-loan .loan-print{
+    display:block!important;width:186mm;margin:0 auto;
+    background:#fff;color:#111;font-family:"Noto Sans TC",sans-serif;
+  }
+  .loan-print h2{margin:0 0 2mm;font:900 15pt/1.2 "Noto Serif TC",serif;letter-spacing:.04em}
+  .loan-print .lp-note{margin:0 0 5mm;font-size:9pt;color:#555}
+  .loan-print .lp-person{margin-bottom:6mm;break-inside:avoid;page-break-inside:avoid}
+  .loan-print .lp-name{
+    display:flex;align-items:baseline;gap:8px;margin-bottom:2mm;padding-bottom:1.5mm;
+    border-bottom:1px solid #222;
+  }
+  .loan-print .lp-name .n{font-size:12pt;font-weight:700}
+  .loan-print .lp-name .sum{margin-left:auto;font-size:9pt;color:#333}
+  .loan-print table{width:100%;border-collapse:collapse;font-size:9pt}
+  .loan-print th,.loan-print td{padding:1.2mm 2mm;border-bottom:1px solid #ddd;text-align:right;
+    font-variant-numeric:tabular-nums}
+  .loan-print th:first-child,.loan-print td:first-child{text-align:left}
 }
 
 /* ============ 可點改 / 借支 ============ */
@@ -526,6 +547,12 @@ table.hist td.zero{color:var(--txt-dim)}
   background:linear-gradient(180deg,#f4dfa4,#c9a25a);
   box-shadow:0 0 14px rgba(212,176,106,.35);
 }
+.loan-toggle-block{margin-bottom:16px}
+.loan-pop .loan-toggle-btn{width:100%}
+.loan-pop .loan-toggle-btn.has-value{color:var(--gold-1);border-color:#8a6a2f}
+.loan-toggle-fields{display:none;margin-top:12px}
+.loan-toggle-fields.open{display:block}
+.loan-pop .loan-toggle-confirm{width:100%;margin-top:2px}
 
 @media (max-width:1450px){
   html:not(.fit),html:not(.fit) body{height:auto;overflow:auto}
@@ -558,6 +585,7 @@ table.hist td.zero{color:var(--txt-dim)}
   <nav class="tabs" id="tabs"></nav>
   <button type="button" class="print-all-btn" id="print-all">列印薪資單</button>
   <button type="button" class="print-all-btn" id="loan-history">借支明細</button>
+  <a class="print-all-btn" href="設定記錄.html" target="_blank">設定記錄</a>
   <div class="nums" id="summary"></div>
   <div class="auth" id="auth"></div>
 </header>
@@ -584,9 +612,24 @@ table.hist td.zero{color:var(--txt-dim)}
   <span class="frame-title">Loan</span>
   <h2 id="loan-who"></h2>
   <div class="f"><label>欠款金額</label><input id="loan-bal" type="number" min="0" step="100"></div>
-  <div class="f"><label>新增金額</label><input id="loan-add" type="number" min="0" step="100"></div>
-  <div class="f"><label>借款日期</label><input id="loan-add-date" type="date"></div>
-  <div class="f"><label>固定還款金額</label><input id="loan-week" type="number" min="0" step="100"></div>
+
+  <div class="loan-toggle-block">
+    <button type="button" class="loan-toggle-btn" id="loan-add-toggle">＋ 新增借款</button>
+    <div class="loan-toggle-fields" id="loan-add-fields">
+      <div class="f"><label>新增金額</label><input id="loan-add" type="number" min="0" step="100"></div>
+      <div class="f"><label>借款日期</label><input id="loan-add-date" type="date"></div>
+      <button type="button" class="loan-toggle-confirm pri" id="loan-add-confirm">確定</button>
+    </div>
+  </div>
+
+  <div class="loan-toggle-block">
+    <button type="button" class="loan-toggle-btn" id="loan-week-toggle">設定固定還款金額</button>
+    <div class="loan-toggle-fields" id="loan-week-fields">
+      <div class="f"><label>固定還款金額</label><input id="loan-week" type="number" min="0" step="100"></div>
+      <button type="button" class="loan-toggle-confirm pri" id="loan-week-confirm">確定</button>
+    </div>
+  </div>
+
   <div class="row">
     <button type="button" class="pri" id="loan-save">儲存</button>
     <button type="button" id="loan-close">關閉</button>
@@ -599,6 +642,7 @@ table.hist td.zero{color:var(--txt-dim)}
   <div class="hist-head">
     <h2>借支明細</h2>
     <span class="note" id="hist-note"></span>
+    <button type="button" id="hist-print">列印借支明細</button>
     <button type="button" id="hist-close">關閉</button>
   </div>
   <div class="hist-body" id="hist-body"></div>
@@ -619,6 +663,7 @@ table.hist td.zero{color:var(--txt-dim)}
 </div><!-- /#stage -->
 
 <section class="pay-slip-print" id="pay-slip-print" aria-hidden="true"></section>
+<section class="loan-print" id="loan-print" aria-hidden="true"></section>
 
 <script>
 /* 等比縮放:算出畫布要縮多少才塞得進視窗,任何螢幕尺寸版面比例都一樣 */
@@ -1522,6 +1567,35 @@ table.hist td.zero{color:var(--txt-dim)}
   const loanPop = $("loan-pop");
   const loanScrim = $("loan-scrim");
   let loanName = "";
+  // 新增借款 / 固定還款兩個區塊都是「按鈕點開才有輸入框,按確定收起來」,
+  // 值仍留在(隱藏的)input 裡,實際送出還是靠下面的儲存鍵讀取。
+  function loanToggleBlock(toggleId, fieldsId, confirmId, summary) {
+    const toggle = $(toggleId), fields = $(fieldsId), confirm = $(confirmId);
+    const collapse = () => {
+      fields.classList.remove("open");
+      toggle.hidden = false;
+      toggle.textContent = summary();
+      toggle.classList.toggle("has-value", summary.hasValue());
+    };
+    toggle.onclick = () => { fields.classList.add("open"); toggle.hidden = true; };
+    confirm.onclick = collapse;
+    return collapse;
+  }
+  function loanAddSummary() {
+    const amt = Number($("loan-add").value) || 0;
+    if (!amt) return "＋ 新增借款";
+    const d = ($("loan-add-date").value || "").replace(/-/g, "/");
+    return `本週新增 ${money(amt)} 元${d ? `(${d})` : ""}　點此修改`;
+  }
+  loanAddSummary.hasValue = () => (Number($("loan-add").value) || 0) > 0;
+  function loanWeekSummary() {
+    const amt = Number($("loan-week").value) || 0;
+    return amt ? `固定還款 ${money(amt)} 元/週　點此修改` : "設定固定還款金額";
+  }
+  loanWeekSummary.hasValue = () => (Number($("loan-week").value) || 0) > 0;
+  const collapseLoanAdd = loanToggleBlock("loan-add-toggle", "loan-add-fields", "loan-add-confirm", loanAddSummary);
+  const collapseLoanWeek = loanToggleBlock("loan-week-toggle", "loan-week-fields", "loan-week-confirm", loanWeekSummary);
+
   function openLoan(name) {
     loanName = name;
     const rec = ((saved.借支) || {})[name] || {};
@@ -1530,6 +1604,8 @@ table.hist td.zero{color:var(--txt-dim)}
     $("loan-add").value = rec.新增 || "";
     $("loan-add-date").value = rec.新增日期 || todayISO();
     $("loan-week").value = rec.固定還款 || "";
+    collapseLoanAdd();
+    collapseLoanWeek();
     loanPop.classList.add("on");
     loanScrim.classList.add("on");
     loanPop.setAttribute("aria-hidden", "false");
@@ -1645,6 +1721,55 @@ table.hist td.zero{color:var(--txt-dim)}
         </div>`;
     }).join("");
   }
+
+  function renderLoanLedgerPrint(ledger) {
+    const list = [...ledger.people.values()].filter((e) => e.rows.length);
+    const first = ledger.tabs[0], last = ledger.tabs[ledger.tabs.length - 1];
+    const note = ledger.tabs.length
+      ? `${weekLabel(first)} – ${weekLabel(last)}　日期為該筆所屬週次的起始日`
+      : "";
+    const body = !list.length
+      ? `<p>${LOAN_HISTORY_FROM} 起沒有任何借支紀錄。</p>`
+      : list.map((e) => {
+          const 借出總 = e.rows.reduce((s, r) => s + r.借出, 0);
+          const 還款總 = e.rows.reduce((s, r) => s + r.還款, 0);
+          const 目前 = e.rows[e.rows.length - 1].期末;
+          const rows = e.rows.map((r) => `
+            <tr>
+              <td>${weekLabel(r.tab)} 起</td>
+              <td>${r.期初 ? money(r.期初) : "—"}</td>
+              <td>${r.借出 ? "+" + money(r.借出) + (r.借出日 ? `(${r.借出日})` : "") : "—"}</td>
+              <td>${r.還款 ? "−" + money(r.還款) : "—"}</td>
+              <td>${money(r.期末)}</td>
+            </tr>`).join("");
+          return `
+            <div class="lp-person">
+              <div class="lp-name">
+                <span class="n">${e.name}</span>
+                <span class="sum">借出 ${money(借出總)}　已還 ${money(還款總)}　尚欠 ${money(目前)}</span>
+              </div>
+              <table>
+                <thead><tr><th>日期</th><th>期初欠款</th><th>借出</th><th>還款</th><th>期末欠款</th></tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>`;
+        }).join("");
+    return `<h2>借支明細</h2><p class="lp-note">${note}</p>${body}`;
+  }
+
+  async function printLoanHistory() {
+    const btn = $("hist-print");
+    btn.disabled = true;
+    try {
+      const ledger = await buildLoanLedger();
+      $("loan-print").innerHTML = renderLoanLedgerPrint(ledger);
+      document.body.classList.add("printing-loan");
+      window.print();
+    } finally {
+      btn.disabled = false;
+    }
+  }
+  window.addEventListener("afterprint", () => document.body.classList.remove("printing-loan"));
 
   async function openLoanHistory() {
     histPop.classList.add("on");
@@ -1821,6 +1946,7 @@ table.hist td.zero{color:var(--txt-dim)}
   };
   $("loan-history").onclick = openLoanHistory;
   $("hist-close").onclick = closeLoanHistory;
+  $("hist-print").onclick = printLoanHistory;
   histScrim.onclick = closeLoanHistory;
   $("other-close").onclick = closeOther;
   otherScrim.onclick = closeOther;

@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>薪資設定記錄</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Noto+Serif+TC:wght@600;900&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#07090b;
+  --gold-1:#f4dfa4;
+  --gold-2:#d9b568;
+  --gold-3:#a67c35;
+  --gold-line:linear-gradient(135deg,#6b4c1d 0%,#e8c97a 25%,#8a6a2f 50%,#f4dfa4 75%,#6b4c1d 100%);
+  --txt:#e8e4d8;
+  --txt-dim:#9a9584;
+  --banker:#e05c4f;
+  --ok:#67c98f;
+  --serif:"Noto Serif TC","Cinzel",serif;
+  --sans:"Noto Sans TC",sans-serif;
+  --disp:"Cinzel","Noto Serif TC",serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{background:var(--ink)}
+body{
+  font-family:var(--sans);color:var(--txt);min-height:100vh;
+  background:
+    radial-gradient(1200px 500px at 50% -8%, rgba(38,84,68,.45), transparent 60%),
+    radial-gradient(900px 700px at 88% 110%, rgba(26,54,66,.35), transparent 60%),
+    linear-gradient(180deg,#0a0e10 0%, #07090b 100%);
+  background-attachment:fixed;
+  padding:28px clamp(14px,3vw,40px) 60px;
+}
+h1{
+  font-family:var(--disp);font-size:22px;font-weight:900;letter-spacing:.14em;
+  background:linear-gradient(180deg,#fbeec7 10%,#e2bd72 45%,#9c7434 70%,#f0d491 95%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 2px 3px rgba(0,0,0,.8));
+}
+h1 small{
+  display:block;font-family:var(--sans);font-weight:400;font-size:10px;
+  letter-spacing:.5em;color:var(--txt-dim);-webkit-text-fill-color:var(--txt-dim);margin-top:4px;
+}
+p.hint{color:var(--txt-dim);font-size:12px;margin:10px 0 22px;letter-spacing:.02em;max-width:720px}
+
+/* ============ 金框(跟主頁面 .gframe 一致) ============ */
+.gframe{
+  position:relative;
+  background:linear-gradient(160deg, rgba(24,32,33,.92), rgba(11,17,19,.94));
+  border:1px solid;border-image:var(--gold-line) 1;
+  box-shadow:0 10px 30px rgba(0,0,0,.55), inset 0 0 40px rgba(0,0,0,.35);
+}
+.gframe::before,.gframe::after{
+  content:"";position:absolute;width:14px;height:14px;pointer-events:none;
+  border-color:var(--gold-1);border-style:solid;
+}
+.gframe::before{top:-1px;left:-1px;border-width:2px 0 0 2px}
+.gframe::after{bottom:-1px;right:-1px;border-width:0 2px 2px 0}
+.frame-title{
+  position:absolute;top:-9px;left:18px;
+  font-family:var(--serif);font-size:11px;font-weight:600;letter-spacing:.4em;
+  color:var(--gold-2);background:#0d1315;padding:0 10px;text-transform:uppercase;
+}
+.panel{padding:26px 26px 18px;max-width:1040px;margin:0 auto}
+
+.bar{display:flex;gap:12px;align-items:center;margin-bottom:22px;flex-wrap:wrap}
+select,.bar button{
+  appearance:none;cursor:pointer;font-family:var(--disp);font-weight:700;
+  font-size:12px;letter-spacing:.14em;text-indent:.14em;
+  padding:8px 16px;border-radius:999px;
+  border:1px solid #2a3230;background:rgba(13,20,23,.7);color:var(--txt-dim);
+  transition:.25s;
+}
+select{padding-right:12px}
+.bar button:hover{color:var(--gold-1);border-color:#8a6a2f}
+.status{color:var(--txt-dim);font-size:11px;letter-spacing:.06em}
+
+.entry{margin-bottom:4px;border-bottom:1px solid rgba(217,181,104,.16)}
+.entry:last-child{border-bottom:0}
+.entry-head{display:flex;flex-direction:column;gap:5px;padding:14px 4px;cursor:pointer}
+.entry-head .top-row{display:flex;justify-content:space-between;align-items:baseline;gap:14px}
+.entry-head .t{
+  font-family:var(--disp);font-weight:700;font-size:15px;letter-spacing:.04em;
+  color:var(--gold-1);font-variant-numeric:tabular-nums;
+}
+.entry-head .tag{color:var(--txt-dim);font-size:11px;letter-spacing:.04em;white-space:nowrap}
+.diff-summary{font-size:12px;color:var(--txt-dim);line-height:1.7;font-family:var(--sans)}
+.diff-summary .chip{display:inline-block;margin-right:16px;white-space:nowrap}
+.diff-summary .chip .path{color:var(--txt-dim)}
+.diff-summary .chip .arrow{color:#5a635f;margin:0 4px}
+.diff-summary .chip .to{color:var(--gold-1);font-weight:700;font-family:var(--disp)}
+.diff-summary .more{color:#5a635f}
+.entry-body{display:none;padding:2px 4px 18px}
+.entry.open .entry-body{display:block}
+
+table.hist{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;margin-top:6px}
+table.hist th{
+  font-family:var(--serif);font-size:11px;font-weight:600;letter-spacing:.16em;
+  color:var(--gold-2);text-align:right;padding:4px 10px 6px;white-space:nowrap;
+}
+table.hist th:first-child,table.hist td:first-child{text-align:left;padding-left:2px;width:18%}
+table.hist td{
+  padding:6px 10px;text-align:right;white-space:nowrap;
+  font-family:var(--disp);font-weight:500;font-size:14px;
+  font-variant-numeric:tabular-nums;color:var(--txt);
+  border-top:1px solid rgba(255,255,255,.05);
+}
+table.hist td.name{font-family:var(--sans);font-weight:600;font-size:13.5px;color:var(--txt)}
+table.hist td.zero{color:var(--txt-dim);opacity:.6}
+table.hist td.dateval{font-family:var(--sans);font-size:12.5px;color:var(--txt-dim)}
+table.hist td.changed{
+  color:var(--gold-1);font-weight:700;
+  background:rgba(242,199,90,.08);border-radius:4px;
+}
+
+.raw{margin-top:12px}
+.raw summary{cursor:pointer;color:var(--txt-dim);font-size:11px;letter-spacing:.04em}
+.raw summary:hover{color:var(--gold-2)}
+pre{
+  white-space:pre-wrap;word-break:break-all;margin-top:8px;
+  background:rgba(0,0,0,.35);border:1px solid #23302b;padding:12px;border-radius:6px;
+  font-size:11px;color:var(--txt-dim);max-height:260px;overflow:auto;font-family:monospace;
+}
+.empty{color:var(--txt-dim);padding:20px 2px;font-size:13px}
+</style>
+</head>
+<body>
+<h1>薪資設定記錄<small>SETTINGS LOG</small></h1>
+<p class="hint">「薪資設定」分頁的原始存檔紀錄——每次存檔都會多一列，這裡照時間攤開成表方便看。金字 = 跟上一筆比有改動；空白摘要代表這筆存檔沒改到任何數字。</p>
+
+<div class="gframe">
+  <span class="frame-title">Loan Log</span>
+  <div class="panel">
+    <div class="bar">
+      <select id="tab-select"></select>
+      <button type="button" id="refresh">重新讀取</button>
+      <span class="status" id="status"></span>
+    </div>
+    <div id="list"></div>
+  </div>
+</div>
+
+<script>
+const SHEET_ID = "13f8OR_e4B4vTXgzoNQ0sswBbkfmj6jOJGfnweNaJx1c";
+const SETTINGS_GID = "1249400105";
+const $ = (id) => document.getElementById(id);
+
+function settingsTabKey(tab) {
+  const t = String(tab == null ? "" : tab);
+  return /^\d{1,4}$/.test(t) ? t.padStart(4, "0") : t;
+}
+function parseCSV(str) {
+  const rows = [];
+  let row = [], field = "", inQuotes = false;
+  for (let i = 0; i < str.length; i++) {
+    const c = str[i];
+    if (inQuotes) {
+      if (c === '"') { if (str[i + 1] === '"') { field += '"'; i++; } else inQuotes = false; }
+      else field += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ",") { row.push(field); field = ""; }
+      else if (c === "\r") {}
+      else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
+      else field += c;
+    }
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+function fmtTime(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleString("zh-TW", { timeZone: "Asia/Taipei", hour12: false }).replace(/\//g, "-");
+}
+function money(n) {
+  n = Number(n) || 0;
+  return n.toLocaleString("en-US");
+}
+
+let ENTRIES = {}; // 週代號(補0) -> [{time, rules, rawTab}] 舊到新
+
+async function load() {
+  $("status").textContent = "讀取中…";
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=${SETTINGS_GID}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`匯出失敗(${res.status})`);
+  const text = await res.text();
+  const rows = parseCSV(text);
+  ENTRIES = {};
+  for (let i = 1; i < rows.length; i++) {
+    const [tab, json, time] = rows[i];
+    if (!tab) continue;
+    let rules;
+    try { rules = JSON.parse(json); } catch { continue; }
+    const key = settingsTabKey(tab);
+    (ENTRIES[key] || (ENTRIES[key] = [])).push({ time, rules, rawTab: tab });
+  }
+  Object.values(ENTRIES).forEach((arr) => arr.sort((a, b) => String(a.time).localeCompare(String(b.time))));
+  const keys = Object.keys(ENTRIES).sort();
+  const sel = $("tab-select");
+  const prevSelected = sel.value;
+  sel.innerHTML = keys.map((k) => `<option value="${k}">${k}(${ENTRIES[k].length} 筆)</option>`).join("");
+  sel.value = keys.includes(prevSelected) ? prevSelected : (keys[keys.length - 1] || "");
+  $("status").textContent = `共 ${keys.length} 週、${rows.length - 1} 筆記錄`;
+  render();
+}
+
+// 深度比對兩份 rules,回傳扁平化的異動清單 [{path, from, to}]
+function diffRules(prev, cur) {
+  const out = [];
+  (function walk(a, b, path) {
+    if (a === b) return;
+    const aObj = a && typeof a === "object" && !Array.isArray(a);
+    const bObj = b && typeof b === "object" && !Array.isArray(b);
+    if (aObj && bObj) {
+      const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+      keys.forEach((k) => walk(a[k], b[k], path ? `${path}.${k}` : k));
+      return;
+    }
+    if (JSON.stringify(a) !== JSON.stringify(b)) out.push({ path, from: a, to: b });
+  })(prev || {}, cur || {}, "");
+  return out;
+}
+function fmtDiffVal(v) {
+  if (v === undefined || v === null || v === "") return "—";
+  if (typeof v === "number") return money(v);
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
+function diffSummary(entry, prevEntry) {
+  if (!prevEntry) return "";
+  const diffs = diffRules(prevEntry.rules, entry.rules);
+  if (!diffs.length) return "";
+  const MAX = 6;
+  const chips = diffs.slice(0, MAX).map((d) => `
+    <span class="chip"><span class="path">${d.path}</span> <span class="arrow">→</span> <span class="to">${fmtDiffVal(d.to)}</span></span>`).join("");
+  const more = diffs.length > MAX ? `<span class="more">...等共 ${diffs.length} 處</span>` : "";
+  return `<div class="diff-summary">${chips}${more}</div>`;
+}
+
+function loanTable(entry, prevEntry) {
+  const loans = (entry.rules && entry.rules.借支) || {};
+  const prevLoans = (prevEntry && prevEntry.rules && prevEntry.rules.借支) || {};
+  const names = Object.keys(loans);
+  if (!names.length) return `<p class="empty">這筆沒有借支資料。</p>`;
+  const cell = (val, prevVal, kind) => {
+    const changed = !!prevEntry && String(val ?? "") !== String(prevVal ?? "");
+    if (kind === "date") {
+      return `<td class="dateval${changed ? " changed" : ""}">${val || "—"}</td>`;
+    }
+    const cls = [changed ? "changed" : "", !Number(val) ? "zero" : ""].filter(Boolean).join(" ");
+    return `<td class="${cls}">${money(val || 0)}</td>`;
+  };
+  const body = names.map((name) => {
+    const rec = loans[name] || {};
+    const prevRec = prevLoans[name] || {};
+    return `<tr>
+      <td class="name">${name}</td>
+      ${cell(rec.餘額, prevRec.餘額)}
+      ${cell(rec.新增, prevRec.新增)}
+      ${cell(rec.新增日期, prevRec.新增日期, "date")}
+      ${cell(rec.固定還款, prevRec.固定還款)}
+      ${cell(rec.本週還款, prevRec.本週還款)}
+    </tr>`;
+  }).join("");
+  return `<table class="hist">
+    <thead><tr><th>姓名</th><th>餘額</th><th>新增</th><th>借款日期</th><th>固定還款</th><th>本週還款</th></tr></thead>
+    <tbody>${body}</tbody>
+  </table>`;
+}
+
+function render() {
+  const key = $("tab-select").value;
+  const entries = ENTRIES[key] || [];
+  const list = $("list");
+  if (!entries.length) { list.innerHTML = `<p class="empty">沒有資料。</p>`; return; }
+  list.innerHTML = entries.map((entry, idx) => ({ entry, prevEntry: entries[idx - 1], isLatest: idx === entries.length - 1 }))
+    .reverse().map(({ entry, prevEntry, isLatest }) => `
+    <div class="entry${isLatest ? " open" : ""}">
+      <div class="entry-head" data-toggle>
+        <div class="top-row">
+          <span class="t">${fmtTime(entry.time)}</span>
+          <span class="tag">${isLatest ? "最新　" : ""}原始週代號:${entry.rawTab}</span>
+        </div>
+        ${diffSummary(entry, prevEntry)}
+      </div>
+      <div class="entry-body">
+        ${loanTable(entry, prevEntry)}
+        <details class="raw"><summary>看完整 JSON</summary><pre>${JSON.stringify(entry.rules, null, 1).replace(/</g, "&lt;")}</pre></details>
+      </div>
+    </div>`).join("");
+  list.querySelectorAll("[data-toggle]").forEach((head) => {
+    head.addEventListener("click", () => head.parentElement.classList.toggle("open"));
+  });
+}
+
+$("tab-select").addEventListener("change", render);
+$("refresh").addEventListener("click", () => load().catch((err) => { $("status").textContent = `讀取失敗:${err.message}`; }));
+load().catch((err) => { $("status").textContent = `讀取失敗:${err.message}`; });
+</script>
+</body>
+</html>
