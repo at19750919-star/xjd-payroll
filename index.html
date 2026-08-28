@@ -442,7 +442,7 @@ button.who{
 }
 button.who:hover{color:var(--gold-1);border-bottom-color:var(--gold-2)}
 .tabs button:focus-visible,.who:focus-visible,.adj:focus-visible,
-.loan-pop button:focus-visible,.loan-pop input:focus-visible,.cell-edit:focus-visible{
+.loan-pop button:focus-visible,.loan-pop input:focus-visible,.loan-pop select:focus-visible,.cell-edit:focus-visible{
   outline:1px solid var(--gold-1);outline-offset:3px;
 }
 .cell-edit{
@@ -524,14 +524,15 @@ table.hist td.zero{color:var(--txt-dim)}
 }
 .f{margin-bottom:16px}
 .f label{display:block;font-size:10px;letter-spacing:.3em;color:var(--txt-dim);margin-bottom:6px}
-.loan-pop input[type=number],.loan-pop input[type=text],.loan-pop input[type=date]{
+.loan-pop input[type=number],.loan-pop input[type=text],.loan-pop input[type=date],.loan-pop select{
   width:100%;background:rgba(0,0,0,.35);border:1px solid #2a3230;
   color:var(--txt);font:700 19px var(--disp);padding:8px 10px;
   font-variant-numeric:tabular-nums;appearance:textfield;-moz-appearance:textfield;
 }
 .loan-pop input[type=text]{font-family:var(--sans);font-weight:500;font-size:15px}
 .loan-pop input[type=date]{font-size:16px;color-scheme:dark}
-.loan-pop input[type=number]:focus,.loan-pop input[type=text]:focus,.loan-pop input[type=date]:focus{border-color:#c9a25a;box-shadow:0 0 10px rgba(212,176,106,.25);outline:0}
+.loan-pop select{font-family:var(--sans);font-size:15px;color-scheme:dark;appearance:auto}
+.loan-pop input[type=number]:focus,.loan-pop input[type=text]:focus,.loan-pop input[type=date]:focus,.loan-pop select:focus{border-color:#c9a25a;box-shadow:0 0 10px rgba(212,176,106,.25);outline:0}
 .loan-pop input[type=number]::-webkit-outer-spin-button,
 .loan-pop input[type=number]::-webkit-inner-spin-button{appearance:none;-webkit-appearance:none;margin:0}
 .loan-pop .row{display:flex;gap:10px;margin-top:22px}
@@ -586,6 +587,7 @@ table.hist td.zero{color:var(--txt-dim)}
   <button type="button" class="print-all-btn" id="print-all">列印薪資單</button>
   <button type="button" class="print-all-btn" id="loan-history">借支明細</button>
   <a class="print-all-btn" href="設定記錄.html" target="_blank">設定記錄</a>
+  <button type="button" class="print-all-btn" id="at-card-history">補牌紀錄</button>
   <div class="nums" id="summary"></div>
   <div class="auth" id="auth"></div>
 </header>
@@ -630,6 +632,15 @@ table.hist td.zero{color:var(--txt-dim)}
     </div>
   </div>
 
+  <div class="loan-toggle-block" id="at-card-block" hidden>
+    <button type="button" class="loan-toggle-btn" id="at-card-toggle">寫入補牌</button>
+    <div class="loan-toggle-fields" id="at-card-fields">
+      <div class="f"><label>補牌日期</label><select id="at-card-day"></select></div>
+      <div class="f"><label>補牌數量</label><input id="at-card-count" type="number" min="0" step="1"></div>
+      <button type="button" class="loan-toggle-confirm pri" id="at-card-confirm">確定</button>
+    </div>
+  </div>
+
   <div class="row">
     <button type="button" class="pri" id="loan-save">儲存</button>
     <button type="button" id="loan-close">關閉</button>
@@ -646,6 +657,17 @@ table.hist td.zero{color:var(--txt-dim)}
     <button type="button" id="hist-close">關閉</button>
   </div>
   <div class="hist-body" id="hist-body"></div>
+</aside>
+
+<div class="loan-scrim" id="at-card-hist-scrim"></div>
+<aside class="gframe hist-pop" id="at-card-hist-pop" aria-hidden="true">
+  <span class="frame-title">Card Log</span>
+  <div class="hist-head">
+    <h2>補牌紀錄</h2>
+    <span class="note" id="at-card-hist-note"></span>
+    <button type="button" id="at-card-hist-close">關閉</button>
+  </div>
+  <div class="hist-body" id="at-card-hist-body"></div>
 </aside>
 
 <div class="loan-scrim" id="other-scrim"></div>
@@ -1351,7 +1373,7 @@ table.hist td.zero{color:var(--txt-dim)}
     const atCardCells = (person) => Array.from({ length: 7 }, (_, i) => {
       const count = Number(person.每日補牌 && person.每日補牌[i]) || 0;
       const date = (s.每日營運 && s.每日營運[i] && s.每日營運[i].date) || `星期${i + 1}`;
-      return `<td class="day-col"><button type="button" class="adj" data-edit="atCard" data-day="${i}" aria-label="${escapeAttr(date)} 補牌數量">${count ? `${count}牌` : "＋"}</button></td>`;
+      return `<td class="day-col">${count ? `<span aria-label="${escapeAttr(date)} 補牌 ${count} 牌">${count}牌</span>` : ""}</td>`;
     }).join("");
 
     renderTabs(s.tab);
@@ -1482,7 +1504,7 @@ table.hist td.zero{color:var(--txt-dim)}
             <th>行政</th>
             <th class="day-col">一</th><th class="day-col">二</th><th class="day-col">三</th><th class="day-col">四</th>
             <th class="day-col">五</th><th class="day-col">六</th><th class="day-col">日</th>
-            <th>AT補牌</th><th>比例</th>
+            <th>補牌</th><th>比例</th>
             <th>固定薪</th><th>營業抽成</th><th>合計</th><th>還款</th><th>其他</th><th>實發</th><th>總欠款</th>
           </tr>
           ${adminPeople.map((p) => `
@@ -1599,6 +1621,7 @@ table.hist td.zero{color:var(--txt-dim)}
   const loanPop = $("loan-pop");
   const loanScrim = $("loan-scrim");
   let loanName = "";
+  let loanAtCardCounts = Array(7).fill(0);
   // 新增借款 / 固定還款兩個區塊都是「按鈕點開才有輸入框,按確定收起來」,
   // 值仍留在(隱藏的)input 裡,實際送出還是靠下面的儲存鍵讀取。
   function loanToggleBlock(toggleId, fieldsId, confirmId, summary) {
@@ -1627,6 +1650,30 @@ table.hist td.zero{color:var(--txt-dim)}
   loanWeekSummary.hasValue = () => (Number($("loan-week").value) || 0) > 0;
   const collapseLoanAdd = loanToggleBlock("loan-add-toggle", "loan-add-fields", "loan-add-confirm", loanAddSummary);
   const collapseLoanWeek = loanToggleBlock("loan-week-toggle", "loan-week-fields", "loan-week-confirm", loanWeekSummary);
+  function atCardSummary() {
+    const entries = loanAtCardCounts
+      .map((count, index) => ({ count, index }))
+      .filter((entry) => entry.count > 0);
+    if (!entries.length) return "寫入補牌";
+    return entries.map(({ count, index }) => {
+      const date = DATA && DATA.每日營運 && DATA.每日營運[index];
+      return `${date ? date.date : `星期${index + 1}`} ${count}牌`;
+    }).join("、") + "　點此修改";
+  }
+  atCardSummary.hasValue = () => loanAtCardCounts.some((count) => count > 0);
+  const collapseAtCard = loanToggleBlock("at-card-toggle", "at-card-fields", "at-card-confirm", atCardSummary);
+
+  function loadAtCardCount() {
+    const day = Number($("at-card-day").value) || 0;
+    $("at-card-count").value = loanAtCardCounts[day] || "";
+  }
+  $("at-card-day").onchange = loadAtCardCount;
+  $("at-card-confirm").onclick = () => {
+    const day = Number($("at-card-day").value) || 0;
+    const count = Number($("at-card-count").value);
+    loanAtCardCounts[day] = Number.isInteger(count) && count > 0 ? count : 0;
+    collapseAtCard();
+  };
 
   function openLoan(name) {
     loanName = name;
@@ -1636,8 +1683,20 @@ table.hist td.zero{color:var(--txt-dim)}
     $("loan-add").value = rec.新增 || "";
     $("loan-add-date").value = rec.新增日期 || todayISO();
     $("loan-week").value = rec.固定還款 || "";
+    const isAt = normalizedName(name) === "at";
+    $("at-card-block").hidden = !isAt;
+    loanAtCardCounts = Array.from({ length: 7 }, (_, i) => Number(saved.行政 && saved.行政.AT補牌 && saved.行政.AT補牌[i]) || 0);
+    $("at-card-day").innerHTML = ((DATA && DATA.每日營運) || []).map((row, index) =>
+      `<option value="${index}">${escapeAttr(row.date)} 星期${escapeAttr(row.day)}</option>`
+    ).join("");
+    const firstSavedDay = loanAtCardCounts.findIndex((count) => count > 0);
+    const todayLabel = new Date().toLocaleDateString("zh-TW", { month: "numeric", day: "numeric" });
+    const todayDay = ((DATA && DATA.每日營運) || []).findIndex((row) => row.date === todayLabel);
+    $("at-card-day").value = String(firstSavedDay >= 0 ? firstSavedDay : (todayDay >= 0 ? todayDay : 0));
+    loadAtCardCount();
     collapseLoanAdd();
     collapseLoanWeek();
+    collapseAtCard();
     loanPop.classList.add("on");
     loanScrim.classList.add("on");
     loanPop.setAttribute("aria-hidden", "false");
@@ -1686,6 +1745,77 @@ table.hist td.zero{color:var(--txt-dim)}
   function weekLabel(tab) {
     const m = /^(\d{2})(\d{2})$/.exec(String(tab));
     return m ? `${Number(m[1])}/${Number(m[2])}` : String(tab);
+  }
+
+  function collectAtCardHistory(settingsRows, weeksByTab) {
+    const rows = [];
+    Object.keys(settingsRows || {}).forEach((tab) => {
+      const rules = settingsRows[tab] || {};
+      const counts = (rules.行政 && rules.行政.AT補牌) || [];
+      const dates = (weeksByTab && weeksByTab[tab]) || [];
+      counts.slice(0, 7).forEach((value, index) => {
+        const count = Number(value);
+        if (!Number.isInteger(count) || count <= 0) return;
+        const date = dates[index] || {};
+        rows.push({ tab, 日期: date.date || String(tab), 星期: date.day || "", 數量: count });
+      });
+    });
+    return rows;
+  }
+
+  const atCardHistPop = $("at-card-hist-pop");
+  const atCardHistScrim = $("at-card-hist-scrim");
+
+  async function buildAtCardHistory() {
+    const historySettings = {};
+    const weeksByTab = {};
+    for (const tab of TABS) {
+      const rules = tab === (DATA && DATA.tab) ? saved : SETTINGS_ROWS[tab];
+      const counts = rules && rules.行政 && rules.行政.AT補牌;
+      if (!Array.isArray(counts) || !counts.some((value) => Number(value) > 0)) continue;
+      historySettings[tab] = rules;
+      const data = WEEK_CACHE[tab] || (WEEK_CACHE[tab] = await loadWeekData(tab));
+      weeksByTab[tab] = data.每日營運 || [];
+    }
+    return collectAtCardHistory(historySettings, weeksByTab);
+  }
+
+  function renderAtCardHistory(rows) {
+    if (!rows.length) return `<p class="hist-empty">目前沒有補牌紀錄。</p>`;
+    const body = rows.map((row) => `
+      <tr>
+        <td class="d">${escapeAttr(row.日期)}${row.星期 ? ` 星期${escapeAttr(row.星期)}` : ""}</td>
+        <td>${row.數量} 牌</td>
+      </tr>`).join("");
+    return `
+      <div class="hist-person">
+        <table class="hist">
+          <thead><tr><th>日期</th><th>數量</th></tr></thead>
+          <tbody>${body}</tbody>
+        </table>
+      </div>`;
+  }
+
+  async function openAtCardHistory() {
+    atCardHistPop.classList.add("on");
+    atCardHistScrim.classList.add("on");
+    atCardHistPop.setAttribute("aria-hidden", "false");
+    $("at-card-hist-note").textContent = "";
+    $("at-card-hist-body").innerHTML = `<p class="hist-empty">讀取各週資料中…</p>`;
+    try {
+      const rows = await buildAtCardHistory();
+      $("at-card-hist-body").innerHTML = renderAtCardHistory(rows);
+      const total = rows.reduce((sum, row) => sum + row.數量, 0);
+      $("at-card-hist-note").textContent = rows.length ? `${rows.length} 筆，共 ${total} 牌` : "";
+    } catch (err) {
+      $("at-card-hist-body").innerHTML = `<p class="hist-empty">讀取失敗(抓不到就停,不猜):${err.message}</p>`;
+    }
+  }
+
+  function closeAtCardHistory() {
+    atCardHistPop.classList.remove("on");
+    atCardHistScrim.classList.remove("on");
+    atCardHistPop.setAttribute("aria-hidden", "true");
   }
 
   // 逐週跑一次跟畫面上完全相同的 compute(),所以還款金額就是當週實際扣的錢
@@ -1850,18 +1980,7 @@ table.hist td.zero{color:var(--txt-dim)}
     const adj = e.target.closest("[data-edit]");
     if (!adj) return;
     const kind = adj.dataset.edit;
-    if (kind === "atCard") {
-      const day = Number(adj.dataset.day);
-      const counts = Array.from({ length: 7 }, (_, i) => Number(saved.行政 && saved.行政.AT補牌 && saved.行政.AT補牌[i]) || 0);
-      const current = counts[day] || 0;
-      startEdit(adj, String(current), (v) => {
-        const entered = numOr(v, current);
-        counts[day] = Number.isInteger(entered) && entered > 0 ? entered : 0;
-        saved.行政 = saved.行政 || {};
-        saved.行政.AT補牌 = counts;
-        persist();
-      });
-    } else if (kind === "other") {
+    if (kind === "other") {
       openOther(adj.dataset.who);
     } else if (kind === "repayment") {
       const name = adj.dataset.who;
@@ -1984,13 +2103,20 @@ table.hist td.zero{color:var(--txt-dim)}
       delete loans[loanName];
     }
     saved.借支 = loans;
+    if (normalizedName(loanName) === "at") {
+      saved.行政 = saved.行政 || {};
+      saved.行政.AT補牌 = loanAtCardCounts;
+    }
     persist();
     closeLoan();
   };
   $("loan-history").onclick = openLoanHistory;
+  $("at-card-history").onclick = openAtCardHistory;
   $("hist-close").onclick = closeLoanHistory;
   $("hist-print").onclick = printLoanHistory;
   histScrim.onclick = closeLoanHistory;
+  $("at-card-hist-close").onclick = closeAtCardHistory;
+  atCardHistScrim.onclick = closeAtCardHistory;
   $("other-close").onclick = closeOther;
   otherScrim.onclick = closeOther;
   $("other-save").onclick = () => {
@@ -2009,6 +2135,7 @@ table.hist td.zero{color:var(--txt-dim)}
     if (loanPop.classList.contains("on")) closeLoan();
     if (otherPop.classList.contains("on")) closeOther();
     if (histPop.classList.contains("on")) closeLoanHistory();
+    if (atCardHistPop.classList.contains("on")) closeAtCardHistory();
   });
   $("tabs").addEventListener("click", (e) => {
     const b = e.target.closest("button[data-tab]");
@@ -2016,6 +2143,7 @@ table.hist td.zero{color:var(--txt-dim)}
     closeLoan();
     closeOther();
     closeLoanHistory();
+    closeAtCardHistory();
     selectWeek(b.dataset.tab);
   });
 
