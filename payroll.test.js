@@ -58,3 +58,7 @@ test("AT 每日格只顯示有顏色的數量，補牌欄只顯示總金額", ()
   assert.match(html, /p\.補牌數量 \? money\(p\.補牌金額\) : ""/);
   assert.match(html, /\.at-card-count\{[^}]*color:/);
 });
+
+test("行政營業抽成欄頭顯示為獎金", () => {
+  assert.match(html, /<th>固定薪<\/th><th>獎金<\/th><th>合計<\/th>/);
+});
