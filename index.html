@@ -1222,6 +1222,10 @@ table.hist td.zero{color:var(--txt-dim)}
     });
     const 付_正式荷官 = 正式.reduce((s, p) => s + p.實發, 0);
     const 付_實習 = 實習.reduce((s, p) => s + (p.實發 == null ? 0 : p.實發), 0);
+    // CLOSE 面板的「付」不算借支(不扣本週還款、不算新增借出),只算應發薪資本身,
+    // 借支的收放單獨在借支明細/總欠款追蹤,不混進老闆的損益計算。
+    const 應付薪資_正式 = 正式.reduce((s, p) => s + (p.合計 || 0) + (p.其他金額 || 0), 0);
+    const 應付薪資_實習 = 實習.reduce((s, p) => s + (p.合計 || 0) + (p.其他金額 || 0), 0);
     const 還款小計 = 正式.reduce((s, p) => s + p.還款, 0)
       + 實習.reduce((s, p) => s + (p.還款 || 0), 0);
     const 對場主_業績 = pyRound(總營業額 * cfg.對場主.業績率);
@@ -1260,7 +1264,8 @@ table.hist td.zero{color:var(--txt-dim)}
       對場主_業績, 對場主_正式薪資, 對場主_實習薪資, 對場主_荷官薪資, 對場主_合計,
       實習向公司收,
       付_實習,
-      淨額: 對場主_合計 - 付_正式荷官 - 付_實習,
+      應付薪資_正式, 應付薪資_實習,
+      淨額: 對場主_合計 - 應付薪資_正式 - 應付薪資_實習,
     };
   }
 
@@ -1364,7 +1369,7 @@ table.hist td.zero{color:var(--txt-dim)}
           <span class="frame-title">Close</span>
           <div class="close">
             <div class="k">收</div><div class="v">${money(s.對場主_合計)}</div>
-            <div class="k">付</div><div class="v pay">${money(-(s.付_正式荷官 + s.付_實習))}</div>
+            <div class="k">付</div><div class="v pay">${money(-(s.應付薪資_正式 + s.應付薪資_實習))}</div>
             <div class="rule"></div>
             <div class="k net-k">淨</div><div class="v net">${money(s.淨額)}</div>
           </div>
