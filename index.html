@@ -931,7 +931,7 @@ table.hist td.zero{color:var(--txt-dim)}
         時薪: (cfg.實習 && cfg.實習.時薪) || 325,
         獎金率: 0,
       },
-      行政: { 阿生週薪: 7000, AT營業率: 0.0035 },
+      行政: { 阿生週薪: 7000, AT營業率: 0.0035, AT補牌: Array(7).fill(0) },
       對場主: { 業績率: cfg.對場主.業績率 },
       借支: {},
       其他: {},
@@ -957,7 +957,7 @@ table.hist td.zero{color:var(--txt-dim)}
     if (saved.實習.時薪 == null || saved.實習.時薪 === "" || Number(saved.實習.時薪) === 0) {
       saved.實習.時薪 = (CONFIG.實習 && CONFIG.實習.時薪) || 325;
     }
-    saved.行政 = { 阿生週薪: 7000, AT營業率: 0.0035, ...(saved.行政 || {}) };
+    saved.行政 = { 阿生週薪: 7000, AT營業率: 0.0035, AT補牌: Array(7).fill(0), ...(saved.行政 || {}) };
     if (!saved.對場主) saved.對場主 = { 業績率: CONFIG.對場主.業績率 };
     if (!saved.借支) saved.借支 = {};
     if (!saved.其他) saved.其他 = {};
@@ -1012,7 +1012,7 @@ table.hist td.zero{color:var(--txt-dim)}
     if (!isNewCarry && !needsCarryFix) return false;
 
     const previousRules = Object.assign(defaultRules(CONFIG), SETTINGS_ROWS[previousTab] || {});
-    previousRules.行政 = { 阿生週薪: 7000, AT營業率: 0.0035, ...(previousRules.行政 || {}) };
+    previousRules.行政 = { 阿生週薪: 7000, AT營業率: 0.0035, AT補牌: Array(7).fill(0), ...(previousRules.行政 || {}) };
     previousRules.借支 = previousRules.借支 || {};
     previousRules.其他 = previousRules.其他 || {};
     normalizeLoanSchema(previousRules);
@@ -1180,6 +1180,14 @@ table.hist td.zero{color:var(--txt-dim)}
     return { ...p, 還款, 實發: p.合計 - 還款 + (p.其他金額 || 0), 總欠款: 本週欠款 - 還款 };
   }
 
+  function calculateAtCardBonus(dailyCounts, unitPrice) {
+    const 數量 = (dailyCounts || []).slice(0, 7).reduce((sum, value) => {
+      const count = Number(value);
+      return sum + (Number.isInteger(count) && count > 0 ? count : 0);
+    }, 0);
+    return { 數量, 金額: 數量 * Math.max(0, Number(unitPrice) || 0) };
+  }
+
   function compute(cfg, sourceData) {
     const data = sourceData || DATA;
     const 總勝負 = data.勝負合計 * -1;
@@ -1211,7 +1219,20 @@ table.hist td.zero{color:var(--txt-dim)}
       if (adminName === "at") {
         const 比例 = Math.max(0, Number(cfg.行政 && cfg.行政.AT營業率) || 0);
         const 獎金 = pyRound(總營業額 * 比例);
-        return applyLoan(withOther({ ...p, 比例, 時薪金額: 0, 獎金, 合計: 獎金 }), 借支);
+        const 補牌 = calculateAtCardBonus(
+          cfg.行政 && cfg.行政.AT補牌,
+          CONFIG.行政 && CONFIG.行政.AT補牌單價,
+        );
+        return applyLoan(withOther({
+          ...p,
+          比例,
+          時薪金額: 0,
+          獎金,
+          每日補牌: (cfg.行政 && cfg.行政.AT補牌) || Array(7).fill(0),
+          補牌數量: 補牌.數量,
+          補牌金額: 補牌.金額,
+          合計: 獎金 + 補牌.金額,
+        }), 借支);
       }
       if (實習時薪 == null || 實習時薪 === "") {
         return applyLoan(withOther({ ...p, 合計: null }), 借支);
@@ -1327,6 +1348,11 @@ table.hist td.zero{color:var(--txt-dim)}
       return `<td class="day-col">${values.length ? dayValue(values.reduce((sum, v) => sum + Number(v), 0)) : ""}</td>`;
     }).join("");
     const blankDayCells = '<td class="day-col"></td>'.repeat(7);
+    const atCardCells = (person) => Array.from({ length: 7 }, (_, i) => {
+      const count = Number(person.每日補牌 && person.每日補牌[i]) || 0;
+      const date = (s.每日營運 && s.每日營運[i] && s.每日營運[i].date) || `星期${i + 1}`;
+      return `<td class="day-col"><button type="button" class="adj" data-edit="atCard" data-day="${i}" aria-label="${escapeAttr(date)} 補牌數量">${count ? `${count}牌` : "＋"}</button></td>`;
+    }).join("");
 
     renderTabs(s.tab);
 
@@ -1456,14 +1482,14 @@ table.hist td.zero{color:var(--txt-dim)}
             <th>行政</th>
             <th class="day-col">一</th><th class="day-col">二</th><th class="day-col">三</th><th class="day-col">四</th>
             <th class="day-col">五</th><th class="day-col">六</th><th class="day-col">日</th>
-            <th>時數</th><th>比例</th>
+            <th>AT補牌</th><th>比例</th>
             <th>固定薪</th><th>營業抽成</th><th>合計</th><th>還款</th><th>其他</th><th>實發</th><th>總欠款</th>
           </tr>
           ${adminPeople.map((p) => `
             <tr class="admin-row">
               <td class="name"><button type="button" class="who" data-name="${p.名字}">${p.名字}</button></td>
-              ${blankDayCells}
-              <td></td>
+              ${normalizedName(p.名字) === "at" ? atCardCells(p) : blankDayCells}
+              <td>${normalizedName(p.名字) === "at" && p.補牌數量 ? `${p.補牌數量}牌 / ${money(p.補牌金額)}` : ""}</td>
               <td>${normalizedName(p.名字) === "at" ? `<button type="button" class="adj" data-edit="adminRate">${pctExact(p.比例)}</button>` : ""}</td>
               <td>${normalizedName(p.名字) === "阿生" ? `<button type="button" class="adj" data-edit="adminWeekly">${money(p.時薪金額)}</button>` : ""}</td>
               <td>${normalizedName(p.名字) === "at" ? money(p.獎金) : ""}</td>
@@ -1476,7 +1502,7 @@ table.hist td.zero{color:var(--txt-dim)}
           <tr class="intern-subtotal admin-subtotal">
             <td class="name">行政小計</td>
             ${blankDayCells}
-            <td></td>
+            <td>${(() => { const at = adminPeople.find((p) => normalizedName(p.名字) === "at"); return at && at.補牌數量 ? `${at.補牌數量}牌 / ${money(at.補牌金額)}` : ""; })()}</td>
             <td></td>
             <td>${money(adminPeople.reduce((a, p) => a + (p.時薪金額 || 0), 0))}</td>
             <td>${money(adminPeople.reduce((a, p) => a + (p.獎金 || 0), 0))}</td>
@@ -1513,6 +1539,7 @@ table.hist td.zero{color:var(--txt-dim)}
       const other = Number(person.其他金額) || 0;
       const note = person.其他備註 ? `（${escapeAttr(person.其他備註)}）` : "";
       const adjustments = [
+        person.補牌金額 ? `<div class="pay-slip-line pay-slip-adjust"><span>補牌（${person.補牌數量}牌 × ${money(CONFIG.行政.AT補牌單價)}）</span><span>+${money(person.補牌金額)}</span></div>` : "",
         repayment ? `<div class="pay-slip-line pay-slip-adjust"><span>還款</span><span>${money(-repayment)}</span></div>` : "",
         other ? `<div class="pay-slip-line pay-slip-adjust"><span>其他${note}</span><span>${signedMoney(other)}</span></div>` : "",
       ].join("");
@@ -1823,7 +1850,18 @@ table.hist td.zero{color:var(--txt-dim)}
     const adj = e.target.closest("[data-edit]");
     if (!adj) return;
     const kind = adj.dataset.edit;
-    if (kind === "other") {
+    if (kind === "atCard") {
+      const day = Number(adj.dataset.day);
+      const counts = Array.from({ length: 7 }, (_, i) => Number(saved.行政 && saved.行政.AT補牌 && saved.行政.AT補牌[i]) || 0);
+      const current = counts[day] || 0;
+      startEdit(adj, String(current), (v) => {
+        const entered = numOr(v, current);
+        counts[day] = Number.isInteger(entered) && entered > 0 ? entered : 0;
+        saved.行政 = saved.行政 || {};
+        saved.行政.AT補牌 = counts;
+        persist();
+      });
+    } else if (kind === "other") {
       openOther(adj.dataset.who);
     } else if (kind === "repayment") {
       const name = adj.dataset.who;
