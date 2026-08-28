@@ -49,3 +49,12 @@ test("設定紀錄旁提供補牌紀錄按鈕與明細欄位", () => {
   assert.match(html, /id="at-card-history"[^>]*>補牌紀錄<\/button>/);
   assert.match(html, /<th>日期<\/th><th>數量<\/th>/);
 });
+
+test("AT 每日格只顯示有顏色的數量，補牌欄只顯示總金額", () => {
+  const renderer = html.match(/const atCardCells[^]*?\.join\(""\);/)?.[0] || "";
+  assert.match(renderer, /class="at-card-count"/);
+  assert.match(renderer, />\$\{count\}<\/span>/);
+  assert.doesNotMatch(renderer, /\$\{count\}牌/);
+  assert.match(html, /p\.補牌數量 \? money\(p\.補牌金額\) : ""/);
+  assert.match(html, /\.at-card-count\{[^}]*color:/);
+});

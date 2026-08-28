@@ -235,6 +235,7 @@ table.pay td.name{font-family:var(--sans);font-weight:500;font-size:18px;letter-
 table.pay th.day-col,table.pay td.day-col{
   width:38px;padding-left:4px;padding-right:4px;text-align:center;
 }
+.at-card-count{color:var(--gold-2);font-weight:700}
 table.pay td.day-col.has-shift{position:relative;cursor:help}
 table.pay td.day-col.has-shift::after{
   content:attr(data-shift);position:absolute;z-index:20;left:50%;top:calc(100% + 7px);
@@ -1373,7 +1374,7 @@ table.hist td.zero{color:var(--txt-dim)}
     const atCardCells = (person) => Array.from({ length: 7 }, (_, i) => {
       const count = Number(person.每日補牌 && person.每日補牌[i]) || 0;
       const date = (s.每日營運 && s.每日營運[i] && s.每日營運[i].date) || `星期${i + 1}`;
-      return `<td class="day-col">${count ? `<span aria-label="${escapeAttr(date)} 補牌 ${count} 牌">${count}牌</span>` : ""}</td>`;
+      return `<td class="day-col">${count ? `<span class="at-card-count" aria-label="${escapeAttr(date)} 補牌 ${count} 牌">${count}</span>` : ""}</td>`;
     }).join("");
 
     renderTabs(s.tab);
@@ -1511,7 +1512,7 @@ table.hist td.zero{color:var(--txt-dim)}
             <tr class="admin-row">
               <td class="name"><button type="button" class="who" data-name="${p.名字}">${p.名字}</button></td>
               ${normalizedName(p.名字) === "at" ? atCardCells(p) : blankDayCells}
-              <td>${normalizedName(p.名字) === "at" && p.補牌數量 ? `${p.補牌數量}牌 / ${money(p.補牌金額)}` : ""}</td>
+              <td>${normalizedName(p.名字) === "at" && p.補牌數量 ? money(p.補牌金額) : ""}</td>
               <td>${normalizedName(p.名字) === "at" ? `<button type="button" class="adj" data-edit="adminRate">${pctExact(p.比例)}</button>` : ""}</td>
               <td>${normalizedName(p.名字) === "阿生" ? `<button type="button" class="adj" data-edit="adminWeekly">${money(p.時薪金額)}</button>` : ""}</td>
               <td>${normalizedName(p.名字) === "at" ? money(p.獎金) : ""}</td>
@@ -1524,7 +1525,7 @@ table.hist td.zero{color:var(--txt-dim)}
           <tr class="intern-subtotal admin-subtotal">
             <td class="name">行政小計</td>
             ${blankDayCells}
-            <td>${(() => { const at = adminPeople.find((p) => normalizedName(p.名字) === "at"); return at && at.補牌數量 ? `${at.補牌數量}牌 / ${money(at.補牌金額)}` : ""; })()}</td>
+            <td>${(() => { const at = adminPeople.find((p) => normalizedName(p.名字) === "at"); return at && at.補牌數量 ? money(at.補牌金額) : ""; })()}</td>
             <td></td>
             <td>${money(adminPeople.reduce((a, p) => a + (p.時薪金額 || 0), 0))}</td>
             <td>${money(adminPeople.reduce((a, p) => a + (p.獎金 || 0), 0))}</td>
