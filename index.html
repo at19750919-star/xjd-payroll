@@ -1005,7 +1005,7 @@ table.hist td.zero{color:var(--txt-dim)}
   }
 
   const LOAN_SCHEMA_VERSION = 2;
-  const LOAN_CARRY_VERSION = 3;
+  const LOAN_CARRY_VERSION = 4;
 
   function normalizeLoanSchema(rules) {
     const loans = rules.借支 || {};
@@ -1032,7 +1032,8 @@ table.hist td.zero{color:var(--txt-dim)}
     const isNewCarry = !rules.借支承接來源 && !Object.keys(currentLoans).length;
     const needsCarryFix = rules.借支承接來源 === previousTab
       && Number(rules.借支承接版本 || 0) < LOAN_CARRY_VERSION;
-    if (!isNewCarry && !needsCarryFix) return false;
+    const isLinkedToPreviousWeek = rules.借支承接來源 === previousTab;
+    if (!isNewCarry && !needsCarryFix && !isLinkedToPreviousWeek) return false;
 
     const previousRules = Object.assign(defaultRules(CONFIG), SETTINGS_ROWS[previousTab] || {});
     previousRules.行政 = { 阿生週薪: 7000, AT營業率: 0.0035, AT補牌: Array(7).fill(0), ...(previousRules.行政 || {}) };
@@ -1054,19 +1055,32 @@ table.hist td.zero{color:var(--txt-dim)}
     });
     const nextLoans = {};
     DATA.正式.concat(DATA.實習 || []).forEach((person) => {
-      const balance = previousBalances[loanNameKey(person.名字)] || 0;
-      if (!balance) return;
+      const key = loanNameKey(person.名字);
+      const balance = previousBalances[key] || 0;
+      const currentName = Object.keys(currentLoans).find((name) => loanNameKey(name) === key);
+      const existing = currentName ? currentLoans[currentName] : null;
+      const 新增 = isNewCarry ? 0 : Math.max(0, Number(existing && existing.新增) || 0);
+      const 本週還款 = isNewCarry ? 0 : Math.max(0, Number(existing && existing.本週還款) || 0);
+      const 固定還款 = existing && existing.固定還款 != null
+        ? Math.max(0, Number(existing.固定還款) || 0)
+        : (previousFixedPayments[key] || 0);
+      if (!balance && !新增 && !本週還款 && !固定還款) return;
       nextLoans[person.名字] = {
+        ...(existing || {}),
         餘額: balance,
-        新增: 0,
-        固定還款: previousFixedPayments[loanNameKey(person.名字)] || 0,
-        本週還款: 0,
+        新增,
+        固定還款,
+        本週還款,
       };
+      if (!新增) delete nextLoans[person.名字].新增日期;
     });
+    const changed = JSON.stringify(currentLoans) !== JSON.stringify(nextLoans)
+      || rules.借支承接來源 !== previousTab
+      || Number(rules.借支承接版本 || 0) !== LOAN_CARRY_VERSION;
     rules.借支 = nextLoans;
     rules.借支承接來源 = previousTab;
     rules.借支承接版本 = LOAN_CARRY_VERSION;
-    return true;
+    return changed;
   }
 
   const FORCED_INTERNS = new Set(["vicky(v)", "小蘇(赫)"]);
