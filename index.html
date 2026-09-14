@@ -1909,23 +1909,17 @@ table.hist td.zero{color:var(--txt-dim)}
   }
 
   function renderLoanLedger(ledger) {
-    // 螢幕版：事件／有異動的週、新到舊、不顯示期初；完整週帳留給列印
-    const list = [...ledger.people.values()]
-      .map((e) => {
-        const rows = (e.rows || []).filter((r) => r.借出 || r.還款);
-        const 目前 = (e.rows && e.rows.length) ? e.rows[e.rows.length - 1].期末 : 0;
-        const 借出總 = (e.rows || []).reduce((s, r) => s + r.借出, 0);
-        const 還款總 = (e.rows || []).reduce((s, r) => s + r.還款, 0);
-        return { name: e.name, rows, 目前, 借出總, 還款總 };
-      })
-      .filter((e) => e.rows.length || e.目前)
-      .sort((a, b) => b.目前 - a.目前 || String(a.name).localeCompare(String(b.name), "zh"));
+    const list = [...ledger.people.values()].filter((e) => e.rows.length);
     if (!list.length) return `<p class="hist-empty">${LOAN_HISTORY_FROM} 起沒有任何借支紀錄。</p>`;
     return list.map((e) => {
-      const body = e.rows.slice().reverse().map((r) => `
+      const 借出總 = e.rows.reduce((s, r) => s + r.借出, 0);
+      const 還款總 = e.rows.reduce((s, r) => s + r.還款, 0);
+      const 目前 = e.rows[e.rows.length - 1].期末;
+      const body = e.rows.map((r) => `
         <tr>
-          <td class="d">${weekLabel(r.tab)} 起${r.借出 && r.借出日 ? dateTag(r.借出日) : ""}</td>
-          <td class="${r.借出 ? "add" : "zero"}">${r.借出 ? "+" + money(r.借出) : "—"}</td>
+          <td class="d">${weekLabel(r.tab)} 起</td>
+          <td class="${r.期初 ? "" : "zero"}">${r.期初 ? money(r.期初) : "—"}</td>
+          <td class="${r.借出 ? "add" : "zero"}">${r.借出 ? "+" + money(r.借出) + dateTag(r.借出日) : "—"}</td>
           <td class="${r.還款 ? "pay" : "zero"}">${r.還款 ? "−" + money(r.還款) : "—"}</td>
           <td class="bal">${money(r.期末)}</td>
         </tr>`).join("");
@@ -1933,10 +1927,10 @@ table.hist td.zero{color:var(--txt-dim)}
         <div class="hist-person">
           <div class="hist-name">
             <span class="n">${e.name}</span>
-            <span class="sum">尚欠<b>${money(e.目前)}</b>　借出<b>${money(e.借出總)}</b>　已還<b>${money(e.還款總)}</b></span>
+            <span class="sum">借出<b>${money(借出總)}</b>　已還<b>${money(還款總)}</b>　尚欠<b>${money(目前)}</b></span>
           </div>
           <table class="hist">
-            <thead><tr><th>日期</th><th>借出</th><th>還款</th><th>餘額</th></tr></thead>
+            <thead><tr><th>日期</th><th>期初欠款</th><th>借出</th><th>還款</th><th>期末欠款</th></tr></thead>
             <tbody>${body}</tbody>
           </table>
         </div>`;
