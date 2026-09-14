@@ -1,4 +1,4 @@
-# CLAUDE.md
+﻿# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -44,3 +44,16 @@ To re-freeze after a week rolls out of the live window: `node scripts/freeze_his
 ## Workflow
 
 Solo-dev, direct-to-`main` commits, no PRs. Commit messages are short, imperative, Traditional Chinese.
+
+## 上線閘門（必跑）
+
+改 index.html 或要跟使用者說「修好／可重整」之前：
+
+1. 
+ode scripts/check_page.js（語法 + 重複函式宣告；失敗禁止 push）
+2. 
+ode --test payroll.test.js（附加，不能當頁面可用證據）
+3. 瀏覽器實測線上頁（建議 ?v=<commit>）：Console 無 SyntaxError、#tabs 有週分頁、若改到借支明細則點開並記秒數
+
+沒過第 1、3 關，不准說修好、不准 push。
+
