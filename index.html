@@ -1817,18 +1817,21 @@ table.hist td.zero{color:var(--txt-dim)}
   async function buildAtCardHistory() {
     const historySettings = {};
     const weeksByTab = {};
-    for (const tab of TABS) {
+    const needed = TABS.filter((tab) => {
       const rules = tab === (DATA && DATA.tab) ? saved : SETTINGS_ROWS[tab];
       const counts = rules && rules.行政 && rules.行政.AT補牌;
-      if (!Array.isArray(counts) || !counts.some((value) => Number(value) > 0)) continue;
+      if (!Array.isArray(counts) || !counts.some((value) => Number(value) > 0)) return false;
       historySettings[tab] = rules;
-      const data = await getWeekData(tab);
-      weeksByTab[tab] = data.每日營運 || [];
-    }
+      return true;
+    });
+    const weekDatas = await Promise.all(needed.map((tab) => getWeekData(tab)));
+    needed.forEach((tab, i) => {
+      weeksByTab[tab] = weekDatas[i].每日營運 || [];
+    });
     return collectAtCardHistory(historySettings, weeksByTab);
   }
 
-  function renderAtCardHistory(rows) {
+  function renderAtCardHistory(rows) {  function renderAtCardHistory(rows) {
     if (!rows.length) return `<p class="hist-empty">目前沒有補牌紀錄。</p>`;
     const body = rows.map((row) => `
       <tr>
@@ -1871,8 +1874,10 @@ table.hist td.zero{color:var(--txt-dim)}
     const from = TABS.indexOf(LOAN_HISTORY_FROM);
     const tabs = TABS.slice(from < 0 ? 0 : from);
     const people = new Map();
-    for (const tab of tabs) {
-      const data = await getWeekData(tab);
+    // 各週並行載入(舊週 history / 活週快取或 api),再逐週 compute;clone 避免 mutate WEEK_CACHE
+    const weekDatas = await Promise.all(tabs.map((tab) => getWeekData(tab)));
+    tabs.forEach((tab, i) => {
+      const data = clone(weekDatas[i]);
       moveForcedInterns(data);
       ensureAdminPeople(data);
       const rules = Object.assign(defaultRules(CONFIG), SETTINGS_ROWS[tab] || {});
@@ -1883,9 +1888,9 @@ table.hist td.zero{color:var(--txt-dim)}
       });
       applyHoursTo(data, rules);
       applyTitlesTo(data, rules);
-      const s = compute(rules, data);
+      const snap = compute(rules, data);
       const loans = rules.借支 || {};
-      s.正式.concat(s.實習).forEach((p) => {
+      snap.正式.concat(snap.實習).forEach((p) => {
         const rec = loans[p.名字] || {};
         const 期初 = Math.max(0, Number(rec.餘額) || 0);
         const 借出 = Math.max(0, Number(rec.新增) || 0);
@@ -1899,11 +1904,11 @@ table.hist td.zero{color:var(--txt-dim)}
         entry.name = p.名字;                       // 名字有改過就用最新的
         entry.rows.push({ tab, 期初, 借出, 借出日, 還款, 期末 });
       });
-    }
+    });
     return { tabs, people };
   }
 
-  function renderLoanLedger(ledger) {
+  function renderLoanLedger(ledger) {  function renderLoanLedger(ledger) {
     const list = [...ledger.people.values()].filter((e) => e.rows.length);
     if (!list.length) return `<p class="hist-empty">${LOAN_HISTORY_FROM} 起沒有任何借支紀錄。</p>`;
     return list.map((e) => {
@@ -2221,6 +2226,15 @@ table.hist td.zero{color:var(--txt-dim)}
     }
     if (!TABS.length) { renderBootError("試算表裡沒有可用的週分頁"); return; }
     renderConnected();
+    // 兩個活週一次預載,借支明細/切週就不必再卡 0831
+    const liveTabs = TABS.filter(isLiveTab);
+    renderLoading(liveTabs.length > 1 ? `預載活週 ${liveTabs.join(" / ")}…` : `讀取 ${liveTabs[0] || TABS[TABS.length - 1]} 週資料…`);
+    try {
+      await Promise.all(liveTabs.map((tab) => getWeekData(tab)));
+    } catch (err) {
+      renderBootError(`預載活週失敗:${err.message}`);
+      return;
+    }
     selectWeek(TABS[TABS.length - 1]);
   })();
 })();
