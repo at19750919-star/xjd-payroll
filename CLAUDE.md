@@ -9,10 +9,18 @@ Static single-page casino/dealer payroll dashboard. No build step, no bundler, n
 - `index.html` — the live, authoritative app. Reads/writes the Google Sheet directly from the browser (fetches the sheet's public xlsx export URL).
 - `payroll_config.js` — shared config (`window.PAYROLL_CONFIG`), loaded by `index.html` via `<script>` tag and also parsed by `payroll.py` (strip the `window.PAYROLL_CONFIG = ... ;` wrapper, then `json.loads`). This is the single source of truth for business rules — labels, rates, name lists.
 - `payroll.py` — **read-only** CLI report tool (`python payroll.py [tab_name]`) using the real Google Sheets API. It cross-checks `index.html`'s output and must never write to the sheet. Comments in the file explicitly say: to change a business rule, edit `payroll_config.js`, not `payroll.py`.
+- `history.json` — frozen snapshot of old week tabs (see "Live window + history" below).
+- `scripts/freeze_history.mjs` — regenerates `history.json` (Node, no deps).
 - `設定記錄.html` — settings-change audit log viewer.
 - `開啟.bat` — local dev launcher: runs `python -m http.server 8765` then opens `index.html` through it. Required because opening `index.html` via `file://` breaks the sheet export fetch (CORS); `file://` access auto-redirects to the deployed GitHub Pages copy instead.
 
 Spreadsheet ID (hardcoded in both `index.html` and `payroll.py`): `13f8OR_e4B4vTXgzoNQ0sswBbkfmj6jOJGfnweNaJx1c`. `payroll.py`'s OAuth token lives outside the repo at `C:\Users\at197\.secrets\新巨蛋\gtoken.json`.
+
+## Live window + history
+
+`index.html` only "activates" the most recent `LIVE_WINDOW` (= 2) week tabs — those still fetch the live xlsx workbook + Apps Script API on demand (`loadWeekData`). Every older tab is read-only from `history.json` via `getWeekData(tab)`; if a tab isn't live and isn't in `history.json`, it errors instead of silently hitting the workbook. `isLiveTab(tab)` decides live vs. archived from `TABS`' sorted position. Every code path that used to load week data (`selectWeek`, `carryLoansForward`, `openLoanHistory`/`buildLoanLedger`, `openAtCardHistory`/`buildAtCardHistory`) goes through `getWeekData`, not `loadWeekData`/`WEEK_CACHE` directly.
+
+To re-freeze after a week rolls out of the live window: `node scripts/freeze_history.mjs`. It re-derives `API_URL`/`API_SECRET`/`SHEET_ID`/`LIVE_WINDOW` straight from `index.html` (single source of truth, nothing new to keep in sync), re-downloads the xlsx via the same public export URL, and overwrites `history.json` wholesale (safe to re-run any time, not incremental). It prints which tabs got frozen and which stayed live.
 
 ## Key conventions and gotchas
 

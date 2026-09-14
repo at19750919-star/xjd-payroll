@@ -105,6 +105,11 @@ html.fit .tabs{max-width:716px}
   background:linear-gradient(180deg,#f4dfa4,#c9a25a);
   box-shadow:0 0 14px rgba(212,176,106,.35);
 }
+.archived-tag{
+  margin-left:5px;font-family:var(--serif);font-size:9px;font-weight:600;
+  letter-spacing:.1em;color:var(--gold-3);vertical-align:1px;
+}
+.tabs button.on .archived-tag{color:#5a4212}
 
 /* ============ 金框 ============ */
 .gframe{
@@ -742,6 +747,8 @@ table.hist td.zero{color:var(--txt-dim)}
   let TABS = [];                 // 週分頁清單(左到右,不含設定分頁)
   const WEEK_CACHE = {};         // tab -> 原始資料(勝負/洗碼/正式/實習/行政未定)
   const SETTINGS_ROWS = {};      // tab -> rules
+  const LIVE_WINDOW = 2;         // 只活讀最近幾週,更舊的一律走 history.json 快照
+  let HISTORY = null;            // history.json 內容(讀不到時舊週不可用,活週不受影響)
   let DATA, STORE, saved;
 
   // ---------- Apps Script API(全部前端直呼,不用登入) ----------
@@ -786,6 +793,21 @@ table.hist td.zero{color:var(--txt-dim)}
     // API 回傳的是新到舊,但這裡到處都假設「左到右 = 舊到新」:
     // 開頁面要選 TABS[last]、借支承接要抓 TABS[index-1] 當上一週。所以自己排一次。
     return (j.tabs || []).slice().sort((a, b) => String(a).localeCompare(String(b)));
+  }
+  // history.json 抓不到就當舊週不可用,不影響活週(活週不吃這份快照)
+  async function loadHistory() {
+    try {
+      const res = await fetch("history.json", { cache: "no-store" });
+      if (!res.ok) throw new Error(`history.json 讀取失敗(${res.status})`);
+      HISTORY = await res.json();
+    } catch {
+      HISTORY = null;
+    }
+  }
+  // TABS 排序後(舊到新)的最後 LIVE_WINDOW 個是活週,其餘一律走 history 快照
+  function isLiveTab(tab) {
+    const idx = TABS.indexOf(tab);
+    return idx < 0 || idx >= TABS.length - LIVE_WINDOW;
   }
   function dailyNameKey(name) {
     return String(name || "").replace(/\s+/g, "").toLowerCase();
@@ -926,6 +948,14 @@ table.hist td.zero{color:var(--txt-dim)}
     week.每日營運 = dailyOperations;
     return week;
   }
+  // 活週才會觸發 loadWeekData(整本 xlsx);舊週一律只讀 history 快照,找不到就明確報錯,不猜、不偷抓 xlsx
+  async function getWeekData(tab) {
+    if (WEEK_CACHE[tab]) return WEEK_CACHE[tab];
+    if (isLiveTab(tab)) return (WEEK_CACHE[tab] = await loadWeekData(tab));
+    const snapshot = HISTORY && HISTORY.weeks && HISTORY.weeks[tab];
+    if (!snapshot) throw new Error(`舊週 ${tab} 沒有 history 快照,請先跑 scripts/freeze_history.mjs`);
+    return (WEEK_CACHE[tab] = clone(snapshot));
+  }
 
   // ---------- 薪資設定分頁(使用者改過的值,換電腦也看得到) ----------
   function settingsTabKey(tab) {
@@ -965,7 +995,7 @@ table.hist td.zero{color:var(--txt-dim)}
   async function selectWeek(tab) {
     renderLoading(`讀取 ${tab} 週資料…`);
     try {
-      DATA = WEEK_CACHE[tab] || (WEEK_CACHE[tab] = await loadWeekData(tab));
+      DATA = await getWeekData(tab);
     } catch (err) {
       renderError(`讀取失敗(抓不到就停,不猜):${err.message}`);
       return;
@@ -1041,7 +1071,7 @@ table.hist td.zero{color:var(--txt-dim)}
     previousRules.其他 = previousRules.其他 || {};
     normalizeLoanSchema(previousRules);
 
-    const previousData = clone(WEEK_CACHE[previousTab] || await loadWeekData(previousTab));
+    const previousData = clone(await getWeekData(previousTab));
     moveForcedInterns(previousData);
     ensureAdminPeople(previousData);
     const previousSnapshot = compute(previousRules, previousData);
@@ -1339,9 +1369,12 @@ table.hist td.zero{color:var(--txt-dim)}
   }
 
   function renderTabs(current) {
-    $("tabs").innerHTML = TABS.map((t) =>
-      `<button type="button" class="${t === current ? "on" : ""}" data-tab="${t}">${t}</button>`
-    ).join("");
+    $("tabs").innerHTML = TABS.map((t) => {
+      const archived = !isLiveTab(t);
+      const cls = [t === current ? "on" : "", archived ? "archived" : ""].filter(Boolean).join(" ");
+      const tag = archived ? `<span class="archived-tag">封存</span>` : "";
+      return `<button type="button" class="${cls}" data-tab="${t}">${t}${tag}</button>`;
+    }).join("");
   }
 
   function renderLoading(text) {
@@ -1789,7 +1822,7 @@ table.hist td.zero{color:var(--txt-dim)}
       const counts = rules && rules.行政 && rules.行政.AT補牌;
       if (!Array.isArray(counts) || !counts.some((value) => Number(value) > 0)) continue;
       historySettings[tab] = rules;
-      const data = WEEK_CACHE[tab] || (WEEK_CACHE[tab] = await loadWeekData(tab));
+      const data = await getWeekData(tab);
       weeksByTab[tab] = data.每日營運 || [];
     }
     return collectAtCardHistory(historySettings, weeksByTab);
@@ -1839,7 +1872,7 @@ table.hist td.zero{color:var(--txt-dim)}
     const tabs = TABS.slice(from < 0 ? 0 : from);
     const people = new Map();
     for (const tab of tabs) {
-      const data = WEEK_CACHE[tab] || (WEEK_CACHE[tab] = await loadWeekData(tab));
+      const data = await getWeekData(tab);
       moveForcedInterns(data);
       ensureAdminPeople(data);
       const rules = Object.assign(defaultRules(CONFIG), SETTINGS_ROWS[tab] || {});
@@ -2181,7 +2214,7 @@ table.hist td.zero{color:var(--txt-dim)}
     }
     renderLoading("讀取試算表分頁清單…");
     try {
-      [TABS] = await Promise.all([listTabs(), loadAllSettings()]);
+      [TABS] = await Promise.all([listTabs(), loadAllSettings(), loadHistory()]);
     } catch (err) {
       renderBootError(`讀取試算表失敗:${err.message}`);
       return;

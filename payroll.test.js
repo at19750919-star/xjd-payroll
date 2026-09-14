@@ -62,3 +62,27 @@ test("AT 每日格只顯示有顏色的數量，補牌欄只顯示總金額", ()
 test("行政營業抽成欄頭顯示為獎金", () => {
   assert.match(html, /<th>固定薪<\/th><th>獎金<\/th><th>合計<\/th>/);
 });
+
+function loadIsLiveTab(tabs) {
+  const fnMatch = html.match(/function isLiveTab\([^]*?\n  }/);
+  assert.ok(fnMatch, "isLiveTab 必須存在於 index.html");
+  const liveWindowMatch = html.match(/const LIVE_WINDOW = (\d+)/);
+  assert.ok(liveWindowMatch, "LIVE_WINDOW 必須存在於 index.html");
+  const context = { TABS: tabs, LIVE_WINDOW: Number(liveWindowMatch[1]) };
+  vm.createContext(context);
+  vm.runInContext(`${fnMatch[0]}; this.result = isLiveTab;`, context);
+  return context.result;
+}
+
+test("isLiveTab 只把排序後最後 LIVE_WINDOW 個 tab 當活週", () => {
+  const isLiveTab = loadIsLiveTab(["0810", "0817", "0824", "0831", "0907"]);
+  assert.equal(isLiveTab("0810"), false);
+  assert.equal(isLiveTab("0824"), false);
+  assert.equal(isLiveTab("0831"), true);
+  assert.equal(isLiveTab("0907"), true);
+});
+
+test("舊週一律走 getWeekData,不直接呼叫 loadWeekData/WEEK_CACHE", () => {
+  assert.doesNotMatch(html, /WEEK_CACHE\[\w+\] \|\| \(WEEK_CACHE\[\w+\] = await loadWeekData/);
+  assert.match(html, /async function getWeekData\(tab\)/);
+});
