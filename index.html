@@ -1831,7 +1831,7 @@ table.hist td.zero{color:var(--txt-dim)}
     return collectAtCardHistory(historySettings, weeksByTab);
   }
 
-  function renderAtCardHistory(rows) {  function renderAtCardHistory(rows) {
+  function renderAtCardHistory(rows) {
     if (!rows.length) return `<p class="hist-empty">目前沒有補牌紀錄。</p>`;
     const body = rows.map((row) => `
       <tr>
@@ -1908,7 +1908,7 @@ table.hist td.zero{color:var(--txt-dim)}
     return { tabs, people };
   }
 
-  function renderLoanLedger(ledger) {  function renderLoanLedger(ledger) {
+  function renderLoanLedger(ledger) {
     const list = [...ledger.people.values()].filter((e) => e.rows.length);
     if (!list.length) return `<p class="hist-empty">${LOAN_HISTORY_FROM} 起沒有任何借支紀錄。</p>`;
     return list.map((e) => {
