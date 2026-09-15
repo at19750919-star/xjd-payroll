@@ -18,9 +18,9 @@ Spreadsheet ID (hardcoded in both `index.html` and `payroll.py`): `13f8OR_e4B4vT
 
 ## Live window + history
 
-`index.html` only "activates" the most recent `LIVE_WINDOW` (= 2) week tabs — those still fetch the live xlsx workbook + Apps Script API on demand (`loadWeekData`). Every older tab is read-only from `history.json` via `getWeekData(tab)`; if a tab isn't live and isn't in `history.json`, it errors instead of silently hitting the workbook. `isLiveTab(tab)` decides live vs. archived from `TABS`' sorted position. Every code path that used to load week data (`selectWeek`, `carryLoansForward`, `openLoanHistory`/`buildLoanLedger`, `openAtCardHistory`/`buildAtCardHistory`) goes through `getWeekData`, not `loadWeekData`/`WEEK_CACHE` directly.
+`index.html` only "activates" the most recent `LIVE_WINDOW` (= 2) week tabs — those fetch **that tab's** xlsx via `sheet_gids.json` + `export?format=xlsx&gid=` (not the whole workbook, not Apps Script `week`). Every older tab is read-only from `history.json` via `getWeekData(tab)`; if a tab isn't live and isn't in `history.json`, it errors instead of silently hitting the workbook. `isLiveTab(tab)` decides live vs. archived from `TABS`' sorted position. Every code path that used to load week data (`selectWeek`, `carryLoansForward`, `openLoanHistory`/`buildLoanLedger`, `openAtCardHistory`/`buildAtCardHistory`) goes through `getWeekData`, not `loadWeekData`/`WEEK_CACHE` directly.
 
-To re-freeze after a week rolls out of the live window: `node scripts/freeze_history.mjs`. It re-derives `API_URL`/`API_SECRET`/`SHEET_ID`/`LIVE_WINDOW` straight from `index.html` (single source of truth, nothing new to keep in sync), re-downloads the xlsx via the same public export URL, and overwrites `history.json` wholesale (safe to re-run any time, not incremental). It prints which tabs got frozen and which stayed live.
+To re-freeze after a week rolls out of the live window: `node scripts/freeze_history.mjs`. It re-derives `API_URL`/`API_SECRET`/`SHEET_ID`/`LIVE_WINDOW` straight from `index.html`, overwrites `history.json` and `sheet_gids.json` (gid map for live-tab single-sheet export). Safe to re-run any time. It prints which tabs got frozen and which stayed live.
 
 ## Key conventions and gotchas
 

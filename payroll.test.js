@@ -86,3 +86,17 @@ test("舊週一律走 getWeekData,不直接呼叫 loadWeekData/WEEK_CACHE", () =
   assert.doesNotMatch(html, /WEEK_CACHE\[\w+\] \|\| \(WEEK_CACHE\[\w+\] = await loadWeekData/);
   assert.match(html, /async function getWeekData\(tab\)/);
 });
+
+test("活週 xlsx 只抓單一 gid,不匯出整本", () => {
+  assert.match(html, /export\?format=xlsx&gid=/);
+  assert.match(html, /sheet_gids\.json/);
+  assert.doesNotMatch(html, /export\?format=xlsx`\)/);
+  assert.doesNotMatch(html, /export\?format=xlsx"\)/);
+});
+
+test("loadWeekData 不再打 week API", () => {
+  const start = html.indexOf("async function loadWeekData");
+  const end = html.indexOf("async function getWeekData");
+  assert.ok(start >= 0 && end > start, "找不到 loadWeekData/getWeekData");
+  assert.doesNotMatch(html.slice(start, end), /apiGet\("week"/);
+});

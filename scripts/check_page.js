@@ -52,5 +52,11 @@ if (multi.length) {
 if (!code.includes("LIVE_WINDOW") || !code.includes("getWeekData") || !code.includes("history.json")) {
   fail("活讀兩週相關符號缺失（LIVE_WINDOW / getWeekData / history.json）");
 }
+if (!code.includes("sheet_gids.json") || !code.includes("export?format=xlsx&gid=")) {
+  fail("活週必須用 sheet_gids.json + 單分頁 gid 匯出,不准再抓整本 xlsx");
+}
+if (/apiGet\("week"/.test(code)) {
+  fail("loadWeekData 不該再打 week API");
+}
 
 console.log("OK: syntax + no duplicate function headers");

@@ -739,7 +739,7 @@ table.hist td.zero{color:var(--txt-dim)}
   const API_URL = "https://script.google.com/macros/s/AKfycbyvzJMc8HBTt-WhJTRN_pDQbwpzHuC9AOz7pQy1a1qrwJ1kgAGi4GHvkjAH6Zmwm1GxjQ/exec";
   const API_SECRET = "RHPUSm2WDM2KurGfKmucWqNzxqCp-wyd";
   const SHEET_ID = "13f8OR_e4B4vTXgzoNQ0sswBbkfmj6jOJGfnweNaJx1c";
-  let WORKBOOK_PROMISE = null;
+  const WORKBOOKS = {};          // tab -> Promise<workbook>;活週只抓該分頁 gid,不匯出整本
 
   const $ = (id) => document.getElementById(id);
 
@@ -749,6 +749,7 @@ table.hist td.zero{color:var(--txt-dim)}
   const SETTINGS_ROWS = {};      // tab -> rules
   const LIVE_WINDOW = 2;         // 只活讀最近幾週,更舊的一律走 history.json 快照
   let HISTORY = null;            // history.json 內容(讀不到時舊週不可用,活週不受影響)
+  let SHEET_GIDS = {};           // tab -> gid;活週 xlsx 單分頁匯出用
   let DATA, STORE, saved;
 
   // ---------- Apps Script API(全部前端直呼,不用登入) ----------
@@ -761,7 +762,14 @@ table.hist td.zero{color:var(--txt-dim)}
     }
   }
   async function withRetry(fn) {
-    try { return await fn(); } catch (err) { return await fn(); } // 失敗重試一次,吃掉間歇性的 Apps Script 錯誤頁
+    let last;
+    for (let i = 0; i < 4; i += 1) {
+      try { return await fn(); } catch (err) {
+        last = err;
+        if (i < 3) await new Promise((ok) => setTimeout(ok, 300 * (i + 1)));
+      }
+    }
+    throw last;
   }
   async function apiGet(op, params) {
     return withRetry(async () => {
@@ -804,6 +812,21 @@ table.hist td.zero{color:var(--txt-dim)}
       HISTORY = null;
     }
   }
+  async function loadSheetGids() {
+    try {
+      const res = await fetch("sheet_gids.json", { cache: "no-store" });
+      if (!res.ok) throw new Error(`sheet_gids.json 讀取失敗(${res.status})`);
+      SHEET_GIDS = await res.json();
+    } catch {
+      SHEET_GIDS = {};
+    }
+  }
+  function inferTabs() {
+    const keys = new Set();
+    Object.keys((HISTORY && HISTORY.weeks) || {}).forEach((k) => keys.add(k));
+    Object.keys(SHEET_GIDS || {}).forEach((k) => { if (/^\d{4}$/.test(k)) keys.add(k); });
+    return [...keys].sort((a, b) => String(a).localeCompare(String(b)));
+  }
   // TABS 排序後(舊到新)的最後 LIVE_WINDOW 個是活週,其餘一律走 history 快照
   function isLiveTab(tab) {
     const idx = TABS.indexOf(tab);
@@ -812,17 +835,21 @@ table.hist td.zero{color:var(--txt-dim)}
   function dailyNameKey(name) {
     return String(name || "").replace(/\s+/g, "").toLowerCase();
   }
-  async function loadWorkbook() {
+  async function loadWorkbook(tab) {
     if (!window.XLSX) throw new Error("試算表解析元件載入失敗");
-    if (!WORKBOOK_PROMISE) {
-      WORKBOOK_PROMISE = fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=xlsx`)
-        .then((res) => {
-          if (!res.ok) throw new Error(`試算表匯出失敗(${res.status})`);
-          return res.arrayBuffer();
-        })
-        .then((buffer) => XLSX.read(buffer, { type: "array", cellDates: true }));
-    }
-    return WORKBOOK_PROMISE;
+    if (WORKBOOKS[tab]) return WORKBOOKS[tab];
+    const gid = SHEET_GIDS && SHEET_GIDS[tab];
+    if (!gid) throw new Error(`分頁 ${tab} 沒有 gid,請先跑 scripts/freeze_history.mjs`);
+    WORKBOOKS[tab] = fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=xlsx&gid=${gid}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`試算表匯出失敗(${res.status})`);
+        return res.arrayBuffer();
+      })
+      .then((buffer) => XLSX.read(buffer, { type: "array", cellDates: true }));
+    return WORKBOOKS[tab];
+  }
+  function sheetOf(workbook, tab) {
+    return workbook.Sheets[tab] || workbook.Sheets[workbook.SheetNames[0]];
   }
   function cellCommentText(cell) {
     const text = ((cell && cell.c) || []).map((comment) => comment.t || "").join("\n").trim();
@@ -831,8 +858,8 @@ table.hist td.zero{color:var(--txt-dim)}
     return times && times.length >= 2 ? `${times[0]} ～ ${times[1]}` : text;
   }
   async function loadDailyHours(tab) {
-    const workbook = await loadWorkbook();
-    const sheet = workbook.Sheets[tab];
+    const workbook = await loadWorkbook(tab);
+    const sheet = sheetOf(workbook, tab);
     if (!sheet) throw new Error(`試算表找不到分頁 ${tab}`);
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, range: "M1:V60", raw: true, defval: null });
     const details = {};
@@ -875,8 +902,8 @@ table.hist td.zero{color:var(--txt-dim)}
     return [date.getUTCFullYear(), String(date.getUTCMonth() + 1).padStart(2, "0"), String(date.getUTCDate()).padStart(2, "0")].join("-");
   }
   async function loadDailyOperations(tab) {
-    const workbook = await loadWorkbook();
-    const sheet = workbook.Sheets[tab];
+    const workbook = await loadWorkbook(tab);
+    const sheet = sheetOf(workbook, tab);
     if (!sheet) throw new Error(`試算表找不到分頁 ${tab}`);
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: null });
     const grouped = {};
@@ -931,24 +958,69 @@ table.hist td.zero{color:var(--txt-dim)}
     const n = String(name || "").trim();
     return !!n && !/^(https?:\/\/|www\.)/i.test(n);
   }
+  function parseWeekFromSheet(sheet, tab, dailyHours, dailyOperations) {
+    const labels = (CONFIG && CONFIG.標籤) || {};
+    const 正式標題 = labels.正式區標題 || "荷官工作時數統計";
+    const 正式結尾 = labels.正式區結尾 || "全部總時數";
+    const 實習標題 = labels.實習區標題 || "實習荷官工作時數統計";
+    const 勝負列 = labels.勝負列 || "線-勝負";
+    const 洗碼列 = labels.洗碼列 || "積-洗碼";
+    const 合計欄名 = labels.合計欄 || "合計";
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, range: "M1:V60", raw: true, defval: null });
+    let totalCol = 8;
+    rows.forEach((row) => {
+      const idx = (row || []).findIndex((c) => String(c == null ? "" : c).trim() === 合計欄名);
+      if (idx > 0) totalCol = idx;
+    });
+    function numAt(row, i) {
+      const n = Number(row && row[i]);
+      return Number.isFinite(n) ? n : 0;
+    }
+    let 勝負合計 = 0;
+    let 洗碼合計 = 0;
+    const 正式 = [];
+    const 實習 = [];
+    let block = null;
+    rows.forEach((row) => {
+      const label = row[0] == null ? "" : String(row[0]).trim();
+      if (label === 勝負列) 勝負合計 = numAt(row, totalCol);
+      if (label === 洗碼列) 洗碼合計 = numAt(row, totalCol);
+      if (label === 實習標題) { block = "intern"; return; }
+      if (label === 正式標題) { block = "full"; return; }
+      if (label === 正式結尾) { block = null; return; }
+      if (!block || !isRealPerson(label) || label === "時數/HR") return;
+      const daily = dailyHours[dailyNameKey(label)] || {};
+      const person = {
+        名字: label,
+        每日時數: daily.values || Array(7).fill(null),
+        每日備註: daily.notes || Array(7).fill(""),
+        時數: 0,
+      };
+      person.時數 = sumDailyHours(person.每日時數);
+      if (block === "full") 正式.push(person);
+      else 實習.push(person);
+    });
+    return {
+      tab,
+      勝負合計,
+      洗碼合計,
+      正式,
+      實習,
+      行政未定: true,
+      每日營運: dailyOperations,
+    };
+  }
   async function loadWeekData(tab) {
-    const [week, dailyHours, dailyOperations] = await Promise.all([
-      apiGet("week", { tab }),
+    const workbook = await loadWorkbook(tab);
+    const sheet = sheetOf(workbook, tab);
+    if (!sheet) throw new Error(`試算表找不到分頁 ${tab}`);
+    const [dailyHours, dailyOperations] = await Promise.all([
       loadDailyHours(tab),
       loadDailyOperations(tab),
     ]);
-    week.正式 = (week.正式 || []).filter((p) => isRealPerson(p.名字));
-    week.實習 = (week.實習 || []).filter((p) => isRealPerson(p.名字));
-    week.正式.concat(week.實習).forEach((person) => {
-      const daily = dailyHours[dailyNameKey(person.名字)] || {};
-      person.每日時數 = daily.values || Array(7).fill(null);
-      person.每日備註 = daily.notes || Array(7).fill("");
-      person.時數 = sumDailyHours(person.每日時數);
-    });
-    week.每日營運 = dailyOperations;
-    return week;
+    return parseWeekFromSheet(sheet, tab, dailyHours, dailyOperations);
   }
-  // 活週才會觸發 loadWeekData(整本 xlsx);舊週一律只讀 history 快照,找不到就明確報錯,不猜、不偷抓 xlsx
+  // 活週才抓該分頁 xlsx;舊週一律只讀 history 快照,找不到就明確報錯,不猜、不偷抓整本
   async function getWeekData(tab) {
     if (WEEK_CACHE[tab]) return WEEK_CACHE[tab];
     if (isLiveTab(tab)) return (WEEK_CACHE[tab] = await loadWeekData(tab));
@@ -2218,23 +2290,24 @@ table.hist td.zero{color:var(--txt-dim)}
       return;
     }
     renderLoading("讀取試算表分頁清單…");
+    let tabs = [];
     try {
-      [TABS] = await Promise.all([listTabs(), loadAllSettings(), loadHistory()]);
+      [tabs] = await Promise.all([
+        listTabs().catch(() => []),
+        loadAllSettings().catch(() => {}),
+        loadHistory(),
+        loadSheetGids(),
+      ]);
     } catch (err) {
       renderBootError(`讀取試算表失敗:${err.message}`);
       return;
     }
+    TABS = tabs.length ? tabs : inferTabs();
     if (!TABS.length) { renderBootError("試算表裡沒有可用的週分頁"); return; }
     renderConnected();
-    // 兩個活週一次預載,借支明細/切週就不必再卡 0831
     const liveTabs = TABS.filter(isLiveTab);
     renderLoading(liveTabs.length > 1 ? `預載活週 ${liveTabs.join(" / ")}…` : `讀取 ${liveTabs[0] || TABS[TABS.length - 1]} 週資料…`);
-    try {
-      await Promise.all(liveTabs.map((tab) => getWeekData(tab)));
-    } catch (err) {
-      renderBootError(`預載活週失敗:${err.message}`);
-      return;
-    }
+    await Promise.all(liveTabs.map((tab) => getWeekData(tab).catch(() => null)));
     selectWeek(TABS[TABS.length - 1]);
   })();
 })();

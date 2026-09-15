@@ -75,6 +75,20 @@ async function loadWorkbook(XLSX) {
   return XLSX.read(buffer, { type: "array", cellDates: true });
 }
 
+async function loadSheetGids() {
+  const res = await fetch(`https://docs.google.com/spreadsheets/d/${SHEET_ID}/htmlview`);
+  if (!res.ok) throw new Error(`htmlview 讀取失敗(${res.status})`);
+  const html = await res.text();
+  const gids = {};
+  const re = /items\.push\(\{name: "([^"]+)",[\s\S]*?gid: "(\d+)"/g;
+  let match;
+  while ((match = re.exec(html))) {
+    if (/^\d{4}$/.test(match[1]) && match[2] && match[2] !== "0") gids[match[1]] = match[2];
+  }
+  if (!Object.keys(gids).length) throw new Error("htmlview 裡找不到週分頁 gid");
+  return gids;
+}
+
 // ---------- 以下逐一對照 index.html 裡同名函式,邏輯必須一致 ----------
 function dailyNameKey(name) {
   return String(name || "").replace(/\s+/g, "").toLowerCase();
@@ -213,8 +227,12 @@ async function main() {
   };
   fs.writeFileSync(path.join(ROOT, "history.json"), JSON.stringify(history, null, 2) + "\n", "utf8");
 
+  const gids = await loadSheetGids();
+  fs.writeFileSync(path.join(ROOT, "sheet_gids.json"), JSON.stringify(gids, null, 2) + "\n", "utf8");
+
   console.log(`凍結完成(${frozenTabs.length} 週):${frozenTabs.join(", ") || "(無)"}`);
   console.log(`保留活讀(${liveTabs.length} 週):${liveTabs.join(", ")}`);
+  console.log(`gid 對照(${Object.keys(gids).length}):${Object.keys(gids).join(", ")}`);
 }
 
 main().catch((err) => {
