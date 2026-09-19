@@ -747,6 +747,7 @@ table.hist td.zero{color:var(--txt-dim)}
   let TABS = [];                 // 週分頁清單(左到右,不含設定分頁)
   const WEEK_CACHE = {};         // tab -> 原始資料(勝負/洗碼/正式/實習/行政未定)
   const SETTINGS_ROWS = {};      // tab -> rules
+  let SETTINGS_LOADED = false;   // 週設定真的讀到才是 true;沒讀到就不准算借支承接、不准回寫
   const LIVE_WINDOW = 2;         // 只活讀最近幾週,更舊的一律走 history.json 快照
   let HISTORY = null;            // history.json 內容(讀不到時舊週不可用,活週不受影響)
   let SHEET_GIDS = {};           // tab -> gid;活週 xlsx 單分頁匯出用
@@ -1039,6 +1040,7 @@ table.hist td.zero{color:var(--txt-dim)}
     (j.rows || []).forEach((r) => {
       try { SETTINGS_ROWS[settingsTabKey(r.tab)] = JSON.parse(r.rules); } catch {}
     });
+    SETTINGS_LOADED = true;
   }
   async function saveWeekSettings(tab, rules) {
     await apiPost({ op: "saveSettings", tab, rules });
@@ -1131,6 +1133,8 @@ table.hist td.zero{color:var(--txt-dim)}
     if (index <= 0) return false;
 
     const previousTab = TABS[index - 1];
+    // 上週設定沒讀到 → 上週餘額一律算成 0,承接會把本週借支清空,寧可不動
+    if (!SETTINGS_ROWS[previousTab] && Object.keys(currentLoans).length) return false;
     const isNewCarry = !rules.借支承接來源 && !Object.keys(currentLoans).length;
     const needsCarryFix = rules.借支承接來源 === previousTab
       && Number(rules.借支承接版本 || 0) < LOAN_CARRY_VERSION;
@@ -1176,6 +1180,8 @@ table.hist td.zero{color:var(--txt-dim)}
       };
       if (!新增) delete nextLoans[person.名字].新增日期;
     });
+    // 承接算出整份空白、但本週原本有借支 → 一定是上游資料沒讀到,不要覆蓋
+    if (!Object.keys(nextLoans).length && Object.keys(currentLoans).length) return false;
     const changed = JSON.stringify(currentLoans) !== JSON.stringify(nextLoans)
       || rules.借支承接來源 !== previousTab
       || Number(rules.借支承接版本 || 0) !== LOAN_CARRY_VERSION;
@@ -2292,12 +2298,20 @@ table.hist td.zero{color:var(--txt-dim)}
     renderLoading("讀取試算表分頁清單…");
     let tabs = [];
     try {
+      let settingsErr = null;
       [tabs] = await Promise.all([
         listTabs().catch(() => []),
-        loadAllSettings().catch(() => {}),
+        loadAllSettings().catch((err) => { settingsErr = err; }),
         loadHistory(),
         loadSheetGids(),
       ]);
+      // 週設定讀不到就停在這裡。以前是 catch(() => {}) 靜靜吞掉,結果借支承接拿著
+      // 空的 SETTINGS_ROWS 去算,把「餘額/新增全 0」當成正確答案寫回試算表,
+      // 老闆剛加的借款就這樣被洗掉(0914 出現過兩次 借支:{} 的回寫)。
+      if (!SETTINGS_LOADED) {
+        renderBootError(`讀不到週設定(借支/工時等),為避免覆蓋既有借支資料先停住,請重新整理再試:${settingsErr ? settingsErr.message : "未知原因"}`);
+        return;
+      }
     } catch (err) {
       renderBootError(`讀取試算表失敗:${err.message}`);
       return;
