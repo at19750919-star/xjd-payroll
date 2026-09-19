@@ -2309,7 +2309,7 @@ table.hist td.zero{color:var(--txt-dim)}
       // 空的 SETTINGS_ROWS 去算,把「餘額/新增全 0」當成正確答案寫回試算表,
       // 老闆剛加的借款就這樣被洗掉(0914 出現過兩次 借支:{} 的回寫)。
       if (!SETTINGS_LOADED) {
-        renderBootError(`讀不到週設定(借支/工時等),為避免覆蓋既有借支資料先停住,請重新整理再試:${settingsErr ? settingsErr.message : "未知原因"}`);
+        renderBootError(`讀不到週設定(借支/工時等),為避免覆蓋既有借支資料,請重整:${settingsErr ? settingsErr.message : "未知原因"}`);
         return;
       }
     } catch (err) {
