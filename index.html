@@ -72,7 +72,8 @@ header{
 }
 header .title{display:flex;align-items:center;gap:14px;flex:none}
 header .nums{
-  margin-left:auto;display:flex;align-items:flex-end;gap:30px;flex-wrap:wrap;
+  margin-left:auto;display:flex;align-items:flex-end;gap:30px;
+  flex-wrap:nowrap;flex:none;   /* 三個數字排一列,不換行(換行會讓 header 高一倍) */
 }
 .crest{
   width:46px;height:46px;border-radius:50%;flex:none;
@@ -91,12 +92,14 @@ h1 small{
   letter-spacing:.5em;color:var(--txt-dim);-webkit-text-fill-color:var(--txt-dim);margin-top:2px;
 }
 .tabs{
-  display:flex;gap:8px;overflow-x:auto;max-width:40vw;
+  display:flex;gap:8px;overflow-x:auto;max-width:40vw;min-width:0;
+  cursor:grab;user-select:none;
   scrollbar-width:none;-ms-overflow-style:none;
   /* 左側淡出,暗示還有更舊的週 */
   -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 22px);
           mask-image:linear-gradient(90deg,transparent 0,#000 22px);
 }
+.tabs.dragging{cursor:grabbing}
 .tabs.at-start{-webkit-mask-image:none;mask-image:none}
 .tabs::-webkit-scrollbar{display:none}
 html.fit .tabs{max-width:716px}
@@ -1534,6 +1537,7 @@ table.hist td.zero{color:var(--txt-dim)}
       <div><span class="k">總勝負</span><span class="v">${money(s.總勝負)}</span></div>
       <div><span class="k">總退水</span><span class="v neg">${money(-s.總退水)}</span></div>
       <div class="lead"><span class="k">總營業額</span><span class="v">${money(s.總營業額)}</span></div>`;
+    scrollTabIntoView();   // 數字填進去後分頁列寬度才定案,要再定位一次
 
     const operationRows = (s.每日營運 || []).map((row) => `
       <tr>
@@ -2308,6 +2312,39 @@ table.hist td.zero{color:var(--txt-dim)}
     markTabEdge();
   }, { passive: false });
   $("tabs").addEventListener("scroll", markTabEdge, { passive: true });
+  window.addEventListener("resize", scrollTabIntoView);
+
+  // 沒捲軸也能用滑鼠直接把分頁列拖左右
+  (() => {
+    const box = $("tabs");
+    let dragging = false, startX = 0, startLeft = 0, moved = 0;
+    box.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0 || box.scrollWidth <= box.clientWidth) return;
+      dragging = true; moved = 0;
+      startX = e.clientX; startLeft = box.scrollLeft;
+      box.setPointerCapture(e.pointerId);
+      box.classList.add("dragging");
+    });
+    box.addEventListener("pointermove", (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - startX;
+      moved = Math.max(moved, Math.abs(dx));
+      box.scrollLeft = startLeft - dx;
+      markTabEdge();
+    });
+    const end = (e) => {
+      if (!dragging) return;
+      dragging = false;
+      box.classList.remove("dragging");
+      try { box.releasePointerCapture(e.pointerId); } catch (_) {}
+    };
+    box.addEventListener("pointerup", end);
+    box.addEventListener("pointercancel", end);
+    // 拖完不要順手把某一週點下去
+    box.addEventListener("click", (e) => {
+      if (moved > 4) { e.stopPropagation(); e.preventDefault(); moved = 0; }
+    }, true);
+  })();
 
   $("tabs").addEventListener("click", (e) => {
     const b = e.target.closest("button[data-tab]");
