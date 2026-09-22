@@ -90,7 +90,15 @@ h1 small{
   display:block;font-family:var(--sans);font-weight:400;font-size:10px;
   letter-spacing:.5em;color:var(--txt-dim);-webkit-text-fill-color:var(--txt-dim);margin-top:2px;
 }
-.tabs{display:flex;gap:8px;overflow-x:auto;max-width:40vw}
+.tabs{
+  display:flex;gap:8px;overflow-x:auto;max-width:40vw;
+  scrollbar-width:none;-ms-overflow-style:none;
+  /* 左側淡出,暗示還有更舊的週 */
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 22px);
+          mask-image:linear-gradient(90deg,transparent 0,#000 22px);
+}
+.tabs.at-start{-webkit-mask-image:none;mask-image:none}
+.tabs::-webkit-scrollbar{display:none}
 html.fit .tabs{max-width:716px}
 .tabs button{
   appearance:none;cursor:pointer;font-family:var(--disp);font-weight:700;
@@ -1453,6 +1461,24 @@ table.hist td.zero{color:var(--txt-dim)}
       const tag = archived ? `<span class="archived-tag">封存</span>` : "";
       return `<button type="button" class="${cls}" data-tab="${t}">${t}${tag}</button>`;
     }).join("");
+    scrollTabIntoView();
+  }
+
+  // 捲軸藏起來了,所以選到的那週要自己捲進來,並在捲到最左時關掉淡出遮罩
+  function scrollTabIntoView() {
+    const box = $("tabs");
+    const on = box.querySelector("button.on") || box.lastElementChild;
+    if (!on) return;
+    requestAnimationFrame(() => {
+      const r = on.getBoundingClientRect(), br = box.getBoundingClientRect();
+      if (r.right > br.right) box.scrollLeft += r.right - br.right + 8;
+      else if (r.left < br.left) box.scrollLeft -= br.left - r.left + 8;
+      markTabEdge();
+    });
+  }
+  function markTabEdge() {
+    const box = $("tabs");
+    box.classList.toggle("at-start", box.scrollLeft <= 1);
   }
 
   function renderLoading(text) {
@@ -2268,6 +2294,21 @@ table.hist td.zero{color:var(--txt-dim)}
     if (histPop.classList.contains("on")) closeLoanHistory();
     if (atCardHistPop.classList.contains("on")) closeAtCardHistory();
   });
+  // 沒有橫向捲軸時,一般滑鼠滾輪也能捲週次
+  $("tabs").addEventListener("wheel", (e) => {
+    const box = $("tabs");
+    if (box.scrollWidth <= box.clientWidth) return;
+    const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (!d) return;
+    const max = box.scrollWidth - box.clientWidth;
+    const next = Math.min(max, Math.max(0, box.scrollLeft + d));
+    if (next === box.scrollLeft) return;   // 已到底就放行,不要卡住整頁的上下捲動
+    e.preventDefault();
+    box.scrollLeft = next;
+    markTabEdge();
+  }, { passive: false });
+  $("tabs").addEventListener("scroll", markTabEdge, { passive: true });
+
   $("tabs").addEventListener("click", (e) => {
     const b = e.target.closest("button[data-tab]");
     if (!b || (DATA && b.dataset.tab === DATA.tab)) return;
