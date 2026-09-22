@@ -2322,13 +2322,16 @@ table.hist td.zero{color:var(--txt-dim)}
       if (e.button !== 0 || box.scrollWidth <= box.clientWidth) return;
       dragging = true; moved = 0;
       startX = e.clientX; startLeft = box.scrollLeft;
-      box.setPointerCapture(e.pointerId);
-      box.classList.add("dragging");
     });
     box.addEventListener("pointermove", (e) => {
       if (!dragging) return;
       const dx = e.clientX - startX;
       moved = Math.max(moved, Math.abs(dx));
+      if (moved <= 4) return;   // 還沒超過門檻就不攔,不然 pointer capture 會把 click 從按鈕搶走
+      if (!box.hasPointerCapture(e.pointerId)) {
+        box.setPointerCapture(e.pointerId);
+        box.classList.add("dragging");
+      }
       box.scrollLeft = startLeft - dx;
       markTabEdge();
     });
