@@ -1067,6 +1067,7 @@ table.hist td.zero{color:var(--txt-dim)}
       退水每點: cfg.退水每點,
       實習: {
         時薪: (cfg.實習 && cfg.實習.時薪) || 325,
+        個別時薪: { ...((cfg.實習 && cfg.實習.個別時薪) || {}) },
         獎金率: 0,
       },
       行政: { 阿生週薪: 7000, AT營業率: 0.0035, AT補牌: Array(7).fill(0) },
@@ -1094,6 +1095,9 @@ table.hist td.zero{color:var(--txt-dim)}
     saved.實習.獎金率 = 0;
     if (saved.實習.時薪 == null || saved.實習.時薪 === "" || Number(saved.實習.時薪) === 0) {
       saved.實習.時薪 = (CONFIG.實習 && CONFIG.實習.時薪) || 325;
+    }
+    if (!saved.實習.個別時薪) {
+      saved.實習.個別時薪 = { ...((CONFIG.實習 && CONFIG.實習.個別時薪) || {}) };
     }
     saved.行政 = { 阿生週薪: 7000, AT營業率: 0.0035, AT補牌: Array(7).fill(0), ...(saved.行政 || {}) };
     if (!saved.對場主) saved.對場主 = { 業績率: CONFIG.對場主.業績率 };
@@ -1365,7 +1369,6 @@ table.hist td.zero{color:var(--txt-dim)}
       const 獎金 = pyRound(獎金池 * 比例);
       return applyLoan(withOther({ ...p, 比例, 時薪金額, 獎金, 合計: 時薪金額 + 獎金 }), 借支);
     });
-    const 實習時薪 = cfg.實習 && cfg.實習.時薪;
     const 實習 = (data.實習 || []).map((p) => {
       const adminName = normalizedName(p.名字);
       if (adminName === "阿生") {
@@ -1390,12 +1393,13 @@ table.hist td.zero{color:var(--txt-dim)}
           合計: 獎金 + 補牌.金額,
         }), 借支);
       }
-      if (實習時薪 == null || 實習時薪 === "") {
-        return applyLoan(withOther({ ...p, 合計: null }), 借支);
+      const 用時薪 = internWageForCfg(cfg, p.名字);
+      if (用時薪 == null) {
+        return applyLoan(withOther({ ...p, 用時薪, 合計: null }), 借支);
       }
-      const 時薪金額 = pyRound(p.時數 * 實習時薪);
+      const 時薪金額 = pyRound(p.時數 * 用時薪);
       const 獎金 = 0;
-      return applyLoan(withOther({ ...p, 時薪金額, 獎金, 合計: 時薪金額 + 獎金 }), 借支);
+      return applyLoan(withOther({ ...p, 用時薪, 時薪金額, 獎金, 合計: 時薪金額 + 獎金 }), 借支);
     });
     const 付_正式荷官 = 正式.reduce((s, p) => s + p.實發, 0);
     const 付_實習 = 實習.reduce((s, p) => s + (p.實發 == null ? 0 : p.實發), 0);
@@ -1449,6 +1453,21 @@ table.hist td.zero{color:var(--txt-dim)}
   function internWage() {
     const v = saved.實習 && saved.實習.時薪;
     return v == null || v === "" ? 0 : v;
+  }
+  function internWageForCfg(cfg, name) {
+    const ic = (cfg && cfg.實習) || {};
+    const per = ic.個別時薪 || {};
+    const target = normalizedName(name);
+    for (const key in per) {
+      if (normalizedName(key) !== target) continue;
+      const v = per[key];
+      if (v != null && v !== "") return Number(v);
+    }
+    const base = ic.時薪;
+    return base == null || base === "" ? null : Number(base);
+  }
+  function internWageFor(name) {
+    return internWageForCfg(saved, name);
   }
   function adminWeeklySalary() {
     return Math.max(0, Number(saved.行政 && saved.行政.阿生週薪) || 0);
@@ -1635,7 +1654,7 @@ table.hist td.zero{color:var(--txt-dim)}
               ${dayCells(p)}
               <td>${p.虛擬 ? `<button type="button" class="adj" data-edit="hours" data-who="${p.名字}">${p.時數.toFixed(1)}</button>` : p.時數.toFixed(1)}</td>
               <td></td>
-              <td>${p.時薪金額 == null ? "0" : money(p.時薪金額)}</td>
+              <td><button type="button" class="adj" data-edit="internPersonWage" data-who="${escapeAttr(p.名字)}">${p.用時薪 == null ? "" : p.用時薪}</button></td>
               <td></td>
               <td>${p.合計 == null ? "" : money(p.合計)}</td>
               <td>${renderRepaymentCell(p)}</td>
@@ -2228,6 +2247,19 @@ table.hist td.zero{color:var(--txt-dim)}
         else {
           const n = numOr(v, cur);
           saved.實習.時薪 = n < 0 ? 0 : n;
+        }
+        persist();
+      });
+    } else if (kind === "internPersonWage") {
+      const name = adj.dataset.who;
+      const cur = internWageFor(name);
+      startEdit(adj, cur == null ? "" : String(cur), (v) => {
+        saved.實習 = saved.實習 || {};
+        saved.實習.個別時薪 = saved.實習.個別時薪 || {};
+        if (v === "") delete saved.實習.個別時薪[name];
+        else {
+          const n = numOr(v, cur == null ? 0 : cur);
+          saved.實習.個別時薪[name] = n < 0 ? 0 : n;
         }
         persist();
       });

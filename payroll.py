@@ -21,6 +21,10 @@ MASTER_SID = "13f8OR_e4B4vTXgzoNQ0sswBbkfmj6jOJGfnweNaJx1c"
 SCAN_RANGE = "M1:V60"          # 彙總區掃描範圍(M 欄是標籤欄)
 
 
+def _normalize_name(name):
+    return re.sub(r"\s+", "", str(name or "")).lower()
+
+
 def load_config():
     # 設定檔包成 JS(window.PAYROLL_CONFIG = {...};)好讓 index.html 用 <script> 載入,
     # 這裡把包裝剝掉再當 JSON 解析,兩邊共用同一份設定,不會分岔。
@@ -199,13 +203,19 @@ def compute(grid, loc, cfg):
 
     ic = cfg.get("實習") or {}
     intern_wage = ic.get("時薪")
+    個別時薪 = ic.get("個別時薪") or {}
+    個別時薪_normalized = {_normalize_name(k): v for k, v in 個別時薪.items()}
     for p in 實習:
-        if intern_wage in (None, ""):
+        用時薪 = 個別時薪_normalized.get(_normalize_name(p["名字"]))
+        if 用時薪 in (None, ""):
+            用時薪 = intern_wage
+        p["用時薪"] = 用時薪
+        if 用時薪 in (None, ""):
             p["時薪金額"] = None
             p["獎金"] = None
             p["合計"] = None
         else:
-            p["時薪金額"] = round(p["時數"] * intern_wage)
+            p["時薪金額"] = round(p["時數"] * 用時薪)
             p["獎金"] = round(r["總營業額"] * ic.get("獎金率", 0) )
             p["合計"] = p["時薪金額"] + p["獎金"]
         apply_loan(p)

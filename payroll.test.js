@@ -100,3 +100,28 @@ test("loadWeekData 不再打 week API", () => {
   assert.ok(start >= 0 && end > start, "找不到 loadWeekData/getWeekData");
   assert.doesNotMatch(html.slice(start, end), /apiGet\("week"/);
 });
+
+
+test("實習預設時薪 325，寶(²) 個別時薪 187.5", () => {
+  const cfgSrc = fs.readFileSync("payroll_config.js", "utf8");
+  assert.match(cfgSrc, /"時薪":\s*325/);
+  assert.match(cfgSrc, /"個別時薪":\s*\{\s*"寶\(²\)":\s*187\.5\s*\}/);
+  assert.match(html, /function internWageFor\(/);
+  assert.match(html, /data-edit="internPersonWage"/);
+  // 抽 internWageForCfg 行為：預設 325、寶(²) 覆寫 187.5
+  const fnMatch = html.match(/function internWageForCfg\([\s\S]*?\n  \}/);
+  assert.ok(fnMatch, "internWageForCfg 函式應存在於 index.html");
+  const nmMatch = html.match(/function normalizedName\([\s\S]*?\n  \}/);
+  assert.ok(nmMatch, "normalizedName 函式應存在");
+  const context = {};
+  const vm = require("node:vm");
+  vm.runInNewContext(
+    nmMatch[0] + ";" + fnMatch[0] + "; this.internWageForCfg = internWageForCfg;",
+    context,
+  );
+  const cfg = { 實習: { 時薪: 325, 個別時薪: { "寶(²)": 187.5 } } };
+  assert.equal(context.internWageForCfg(cfg, "寶(²)"), 187.5);
+  assert.equal(context.internWageForCfg(cfg, "其他人(x)"), 325);
+  assert.equal(context.internWageForCfg({ 實習: {} }, "寶(²)"), null);
+});
+
