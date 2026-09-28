@@ -344,6 +344,10 @@ table.pay .intern-subtotal td:first-child{
 }
 .mini .sum td{border-bottom:0;border-top:1px solid rgba(244,223,164,.4);font-weight:700;padding-top:6px}
 .dim{color:var(--txt-dim);font-family:var(--sans);font-size:12px}
+.intern-bonus-note{
+  display:block;font-family:var(--serif);font-size:9px;letter-spacing:.14em;
+  color:var(--gold-2);margin-top:2px;
+}
 
 .close{display:grid;grid-template-columns:auto 1fr;align-items:baseline;
   row-gap:9px;column-gap:14px;height:100%;align-content:center}
@@ -1299,6 +1303,19 @@ table.hist td.zero{color:var(--txt-dim)}
     if (!start || !current) return false;
     return Number(current) >= Number(start);
   }
+  function isInternBonusIncluded(tab, name) {
+    // 這是 CONFIG 層級的規則(跟 internWageChargedToCompany 一樣直接讀全域 CONFIG),
+    // 不透過 cfg/saved,因為 saved 是 defaultRules(CONFIG) 篩過的欄位,不含這個新鍵,
+    // 若改成吃 cfg 參數,舊分頁存過的 saved 設定會把這條規則悄悄弄丟。
+    const map = (CONFIG && CONFIG.納入正式分獎金自) || {};
+    const key = Object.keys(map).find((k) => normalizedName(k) === normalizedName(name));
+    if (!key) return false;
+    const digits = String(map[key] || "").replace(/\D/g, "");
+    const mmdd = digits.length >= 4 ? digits.slice(-4) : digits;
+    const current = String(tab || "").replace(/\D/g, "");
+    if (!mmdd || !current) return false;
+    return Number(current) >= Number(mmdd);
+  }
   function money(n) {
     if (n == null || Number.isNaN(n)) return "算法未定";
     return (n < 0 ? "−" : "") + Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
@@ -1363,8 +1380,12 @@ table.hist td.zero{color:var(--txt-dim)}
       const rec = 其他表[p.名字] || {};
       return { ...p, 其他金額: Number(rec.金額) || 0, 其他備註: rec.備註 || "" };
     };
+    const 納入分獎金時數 = (data.實習 || [])
+      .filter((p) => isInternBonusIncluded(data.tab, p.名字))
+      .reduce((s, p) => s + p.時數, 0);
+    const 獎金分母 = 正式總時數 + 納入分獎金時數;
     const 正式 = data.正式.map((p) => {
-      const 比例 = 用固定 ? (固定[p.名字] || 0) : (正式總時數 ? p.時數 / 正式總時數 : 0);
+      const 比例 = 用固定 ? (固定[p.名字] || 0) : (獎金分母 ? p.時數 / 獎金分母 : 0);
       const 時薪金額 = pyRound(p.時數 * cfg.時薪);
       const 獎金 = pyRound(獎金池 * 比例);
       return applyLoan(withOther({ ...p, 比例, 時薪金額, 獎金, 合計: 時薪金額 + 獎金 }), 借支);
@@ -1398,8 +1419,14 @@ table.hist td.zero{color:var(--txt-dim)}
         return applyLoan(withOther({ ...p, 用時薪, 合計: null }), 借支);
       }
       const 時薪金額 = pyRound(p.時數 * 用時薪);
-      const 獎金 = 0;
-      return applyLoan(withOther({ ...p, 用時薪, 時薪金額, 獎金, 合計: 時薪金額 + 獎金 }), 借支);
+      const 納入分獎金 = isInternBonusIncluded(data.tab, p.名字);
+      const 比例 = 納入分獎金 && 獎金分母 ? p.時數 / 獎金分母 : null;
+      const 獎金 = 納入分獎金 ? pyRound(獎金池 * (比例 || 0)) : 0;
+      return applyLoan(withOther({
+        ...p, 用時薪, 時薪金額, 獎金, 比例,
+        納入正式分獎金: 納入分獎金,
+        合計: 時薪金額 + 獎金,
+      }), 借支);
     });
     const 付_正式荷官 = 正式.reduce((s, p) => s + p.實發, 0);
     const 付_實習 = 實習.reduce((s, p) => s + (p.實發 == null ? 0 : p.實發), 0);
@@ -1429,6 +1456,7 @@ table.hist td.zero{color:var(--txt-dim)}
       config: cfg,
       總勝負, 總退水, 總營業額,
       正式, 正式總時數,
+      獎金分母, 納入分獎金時數,
       正式時薪小計: 正式.reduce((s, p) => s + p.時薪金額, 0),
       正式獎金小計: 正式.reduce((s, p) => s + p.獎金, 0),
       正式應發小計: 正式.reduce((s, p) => s + p.合計, 0),
@@ -1653,9 +1681,9 @@ table.hist td.zero{color:var(--txt-dim)}
               <td class="name">${p.虛擬 ? `<button type="button" class="adj" data-edit="internName" data-who="${p.名字}">${p.名字}</button>` : `<button type="button" class="who" data-name="${p.名字}">${p.名字}</button>`}</td>
               ${dayCells(p)}
               <td>${p.虛擬 ? `<button type="button" class="adj" data-edit="hours" data-who="${p.名字}">${p.時數.toFixed(1)}</button>` : p.時數.toFixed(1)}</td>
-              <td></td>
+              <td>${p.納入正式分獎金 ? pct(p.比例) : ""}</td>
               <td><button type="button" class="adj" data-edit="internPersonWage" data-who="${escapeAttr(p.名字)}">${p.用時薪 == null ? "" : p.用時薪}</button></td>
-              <td></td>
+              <td>${p.納入正式分獎金 ? `${money(p.獎金)}<span class="intern-bonus-note">納入正式分獎金</span>` : ""}</td>
               <td>${p.合計 == null ? "" : money(p.合計)}</td>
               <td>${renderRepaymentCell(p)}</td>
               <td>${renderOtherCell(p)}</td>
@@ -1668,7 +1696,7 @@ table.hist td.zero{color:var(--txt-dim)}
             <td>${vickyInterns.reduce((a, p) => a + p.時數, 0).toFixed(1)}</td>
             <td></td>
             <td>${money(vickyInterns.reduce((a, p) => a + (p.時薪金額 || 0), 0))}</td>
-            <td></td>
+            <td>${(() => { const t = vickyInterns.reduce((a, p) => a + (p.獎金 || 0), 0); return t ? money(t) : ""; })()}</td>
             <td>${vickyInterns.some((p) => p.合計 == null) ? "" : money(vickyInterns.reduce((a, p) => a + (p.合計 || 0), 0))}</td>
             <td>${money(vickyInterns.reduce((a, p) => a + (p.還款 || 0), 0))}</td>
             <td>${(() => { const t = vickyInterns.reduce((a, p) => a + (p.其他金額 || 0), 0); return t ? money(t) : ""; })()}</td>

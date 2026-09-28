@@ -125,3 +125,110 @@ test("實習預設時薪 325，寶(²) 個別時薪 187.5", () => {
   assert.equal(context.internWageForCfg({ 實習: {} }, "寶(²)"), null);
 });
 
+function loadCompute() {
+  const fnSrc = (name) => {
+    const m = html.match(new RegExp(`function ${name}\\([\\s\\S]*?\\n  \\}`));
+    assert.ok(m, `${name} 必須存在於 index.html`);
+    return m[0];
+  };
+  const computeMatch = html.match(/function compute\(cfg, sourceData\) \{[\s\S]*?\n  \}\n\n  function internWage/);
+  assert.ok(computeMatch, "compute 必須存在於 index.html");
+  const computeSrc = computeMatch[0].replace(/\n\n  function internWage$/, "");
+  const src = [
+    fnSrc("normalizedName"),
+    fnSrc("pyRound"),
+    fnSrc("internWageChargedToCompany"),
+    fnSrc("isInternBonusIncluded"),
+    fnSrc("internWageForCfg"),
+    fnSrc("calculateAtCardBonus"),
+    fnSrc("applyLoan"),
+    computeSrc,
+    "; this.compute = compute;",
+  ].join(";\n");
+  const context = {
+    ADMIN_NAMES: new Set(["阿生", "at"]),
+    CONFIG: {
+      實習: { 向公司收起始週: "0817" },
+      行政: { AT補牌單價: 300 },
+      納入正式分獎金自: { "Vicky(V)": "2026-09-21" },
+    },
+  };
+  vm.runInNewContext(src, context);
+  return context.compute;
+}
+
+function baseCfg(overrides) {
+  return Object.assign({
+    時薪: 650,
+    獎金率: 0.02,
+    獎金分配方式: "工時佔比",
+    固定比例: {},
+    對場主: { 業績率: 0.12 },
+    實習: { 時薪: 325, 個別時薪: { "寶(²)": 187.5 }, 獎金率: 0 },
+    行政: { AT補牌單價: 300 },
+    退水每點: 200,
+    納入正式分獎金自: { "Vicky(V)": "2026-09-21" },
+  }, overrides);
+}
+
+function baseData(tab, extraInterns) {
+  return {
+    tab,
+    勝負合計: -100000,
+    洗碼合計: 100,
+    正式: [
+      { 名字: "布(laire)", 時數: 40 },
+      { 名字: "阿花(hua)", 時數: 60 },
+    ],
+    實習: [
+      { 名字: "寶(²)", 時數: 30 },
+      { 名字: "Vicky(V)", 時數: 20 },
+      ...(extraInterns || []),
+    ],
+  };
+}
+
+test("tab 0914(納入正式分獎金自 0921 之前)：Vicky 獎金為 0，正式分母不含她", () => {
+  const compute = loadCompute();
+  const r = compute(baseCfg(), baseData("0914"));
+  const vicky = r.實習.find((p) => p.名字 === "Vicky(V)");
+  assert.equal(vicky.獎金, 0);
+  assert.equal(vicky.納入正式分獎金, false);
+  assert.equal(r.獎金分母, r.正式總時數);
+  const formal = r.正式.find((p) => p.名字 === "布(laire)");
+  assert.equal(formal.比例, 40 / r.正式總時數);
+});
+
+test("tab 0921(納入正式分獎金自生效)：分母含 Vicky 時數，她有獎金，正式比例用新分母", () => {
+  const compute = loadCompute();
+  const r = compute(baseCfg(), baseData("0921"));
+  const vicky = r.實習.find((p) => p.名字 === "Vicky(V)");
+  assert.equal(vicky.納入正式分獎金, true);
+  const 分母 = r.正式總時數 + 20;
+  assert.equal(r.獎金分母, 分母);
+  assert.equal(vicky.比例, 20 / 分母);
+  assert.equal(vicky.獎金, Math.round(r.獎金池 * (20 / 分母)));
+  const formal = r.正式.find((p) => p.名字 === "布(laire)");
+  assert.equal(formal.比例, 40 / 分母);
+});
+
+test("寶(²) 永遠不進分母、獎金為 0", () => {
+  const compute = loadCompute();
+  const rBefore = compute(baseCfg(), baseData("0914"));
+  const rAfter = compute(baseCfg(), baseData("0921"));
+  const baoBefore = rBefore.實習.find((p) => p.名字 === "寶(²)");
+  const baoAfter = rAfter.實習.find((p) => p.名字 === "寶(²)");
+  assert.equal(baoBefore.獎金, 0);
+  assert.equal(baoAfter.獎金, 0);
+  assert.equal(rAfter.獎金分母, rAfter.正式總時數 + 20);
+});
+
+test("Vicky 時薪仍是實習預設 325，寶(²) 仍是 187.5，不受分獎金納入影響", () => {
+  const compute = loadCompute();
+  const r = compute(baseCfg(), baseData("0921"));
+  const vicky = r.實習.find((p) => p.名字 === "Vicky(V)");
+  const bao = r.實習.find((p) => p.名字 === "寶(²)");
+  assert.equal(vicky.用時薪, 325);
+  assert.equal(bao.用時薪, 187.5);
+});
+

@@ -136,7 +136,21 @@ def collect_people(grid, head_idx, end_idx, total_col):
     return people
 
 
-def compute(grid, loc, cfg):
+def _intern_bonus_included(cfg, tab, name):
+    """Vicky 從 0921 起納入正式分獎金,規則跟 index.html 的 isInternBonusIncluded 一致。"""
+    mapping = cfg.get("納入正式分獎金自") or {}
+    key = next((k for k in mapping if _normalize_name(k) == _normalize_name(name)), None)
+    if key is None:
+        return False
+    digits = re.sub(r"\D", "", str(mapping[key] or ""))
+    mmdd = digits[-4:] if len(digits) >= 4 else digits
+    current = re.sub(r"\D", "", str(tab or ""))
+    if not mmdd or not current:
+        return False
+    return int(current) >= int(mmdd)
+
+
+def compute(grid, loc, cfg, tab=None):
     tc = loc["合計欄"]
     r = {}
 
@@ -176,6 +190,13 @@ def compute(grid, loc, cfg):
     固定 = cfg.get("固定比例") or {}
     用固定 = cfg["獎金分配方式"] == "固定比例"
 
+    納入分獎金時數 = sum(
+        p["時數"] for p in 實習 if _intern_bonus_included(cfg, tab, p["名字"])
+    )
+    獎金分母 = 正式總時數 + 納入分獎金時數
+    r["獎金分母"] = 獎金分母
+    r["納入分獎金時數"] = 納入分獎金時數
+
     借支 = cfg.get("借支") or {}
 
     def apply_loan(p):
@@ -195,7 +216,7 @@ def compute(grid, loc, cfg):
         return p
 
     for p in 正式:
-        p["比例"] = 固定.get(p["名字"], 0.0) if 用固定 else p["時數"] / 正式總時數
+        p["比例"] = 固定.get(p["名字"], 0.0) if 用固定 else (p["時數"] / 獎金分母 if 獎金分母 else 0.0)
         p["時薪金額"] = round(p["時數"] * cfg["時薪"])
         p["獎金"] = round(獎金池 * p["比例"])
         p["合計"] = p["時薪金額"] + p["獎金"]
@@ -213,10 +234,18 @@ def compute(grid, loc, cfg):
         if 用時薪 in (None, ""):
             p["時薪金額"] = None
             p["獎金"] = None
+            p["比例"] = None
             p["合計"] = None
         else:
             p["時薪金額"] = round(p["時數"] * 用時薪)
-            p["獎金"] = round(r["總營業額"] * ic.get("獎金率", 0) )
+            納入分獎金 = _intern_bonus_included(cfg, tab, p["名字"])
+            p["納入正式分獎金"] = 納入分獎金
+            if 納入分獎金:
+                p["比例"] = p["時數"] / 獎金分母 if 獎金分母 else 0.0
+                p["獎金"] = round(獎金池 * p["比例"])
+            else:
+                p["比例"] = None
+                p["獎金"] = round(r["總營業額"] * ic.get("獎金率", 0))
             p["合計"] = p["時薪金額"] + p["獎金"]
         apply_loan(p)
 
@@ -303,7 +332,7 @@ def main():
     grid = read_grid(sheets, tab)
     try:
         loc = locate(grid, cfg)
-        r = compute(grid, loc, cfg)
+        r = compute(grid, loc, cfg, tab)
     except Bail as e:
         print(f"✗ 定位失敗:{e}")
         print("  → 這週彙總區的版型跟 payroll_config.js 的『標籤』對不上,"
