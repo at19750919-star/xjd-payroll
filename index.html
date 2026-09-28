@@ -634,6 +634,7 @@ table.hist td.zero{color:var(--txt-dim)}
 <aside class="gframe loan-pop" id="loan-pop" aria-hidden="true">
   <span class="frame-title">Loan</span>
   <h2 id="loan-who"></h2>
+  <div class="f" id="loan-wage-block" hidden><label>時薪（單價）</label><input id="loan-wage" type="number" min="0" step="0.5"></div>
   <div class="f"><label>欠款金額</label><input id="loan-bal" type="number" min="0" step="100"></div>
 
   <div class="loan-toggle-block">
@@ -1682,7 +1683,7 @@ table.hist td.zero{color:var(--txt-dim)}
               ${dayCells(p)}
               <td>${p.虛擬 ? `<button type="button" class="adj" data-edit="hours" data-who="${p.名字}">${p.時數.toFixed(1)}</button>` : p.時數.toFixed(1)}</td>
               <td>${p.納入正式分獎金 ? pct(p.比例) : ""}</td>
-              <td><button type="button" class="adj" data-edit="internPersonWage" data-who="${escapeAttr(p.名字)}">${p.用時薪 == null ? "" : p.用時薪}</button></td>
+              <td>${money(p.時薪金額)}</td>
               <td>${p.納入正式分獎金 ? `${money(p.獎金)}<span class="intern-bonus-note">納入正式分獎金</span>` : ""}</td>
               <td>${p.合計 == null ? "" : money(p.合計)}</td>
               <td>${renderRepaymentCell(p)}</td>
@@ -1882,6 +1883,12 @@ table.hist td.zero{color:var(--txt-dim)}
     loanName = name;
     const rec = ((saved.借支) || {})[name] || {};
     $("loan-who").textContent = name;
+    const isIntern = FORCED_INTERNS.has(normalizedName(name)) || ((DATA && DATA.實習) || []).some((p) => p.名字 === name);
+    $("loan-wage-block").hidden = !isIntern;
+    if (isIntern) {
+      const w = internWageFor(name);
+      $("loan-wage").value = w == null ? "" : w;
+    }
     $("loan-bal").value = rec.餘額 || "";
     $("loan-add").value = rec.新增 || "";
     $("loan-add-date").value = rec.新增日期 || todayISO();
@@ -2278,19 +2285,6 @@ table.hist td.zero{color:var(--txt-dim)}
         }
         persist();
       });
-    } else if (kind === "internPersonWage") {
-      const name = adj.dataset.who;
-      const cur = internWageFor(name);
-      startEdit(adj, cur == null ? "" : String(cur), (v) => {
-        saved.實習 = saved.實習 || {};
-        saved.實習.個別時薪 = saved.實習.個別時薪 || {};
-        if (v === "") delete saved.實習.個別時薪[name];
-        else {
-          const n = numOr(v, cur == null ? 0 : cur);
-          saved.實習.個別時薪[name] = n < 0 ? 0 : n;
-        }
-        persist();
-      });
     }
   }
   $("book").addEventListener("click", onEditClick);
@@ -2327,6 +2321,16 @@ table.hist td.zero{color:var(--txt-dim)}
     if (normalizedName(loanName) === "at") {
       saved.行政 = saved.行政 || {};
       saved.行政.AT補牌 = loanAtCardCounts;
+    }
+    if (!$("loan-wage-block").hidden) {
+      const wv = $("loan-wage").value;
+      saved.實習 = saved.實習 || {};
+      saved.實習.個別時薪 = saved.實習.個別時薪 || {};
+      if (wv === "") delete saved.實習.個別時薪[loanName];
+      else {
+        const n = Number(wv);
+        saved.實習.個別時薪[loanName] = Number.isFinite(n) ? Math.max(0, n) : 0;
+      }
     }
     persist();
     closeLoan();

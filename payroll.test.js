@@ -107,7 +107,11 @@ test("實習預設時薪 325，寶(²) 個別時薪 187.5", () => {
   assert.match(cfgSrc, /"時薪":\s*325/);
   assert.match(cfgSrc, /"個別時薪":\s*\{\s*"寶\(²\)":\s*187\.5\s*\}/);
   assert.match(html, /function internWageFor\(/);
-  assert.match(html, /data-edit="internPersonWage"/);
+  assert.doesNotMatch(html, /data-edit="internPersonWage"/);
+  assert.match(html, /id="loan-wage-block"/);
+  assert.match(html, /id="loan-wage"/);
+  // 實習列時薪欄渲染的是時薪金額（時數×時薪），不是單價
+  assert.match(html, /<td>\$\{money\(p\.時薪金額\)\}<\/td>/);
   // 抽 internWageForCfg 行為：預設 325、寶(²) 覆寫 187.5
   const fnMatch = html.match(/function internWageForCfg\([\s\S]*?\n  \}/);
   assert.ok(fnMatch, "internWageForCfg 函式應存在於 index.html");
