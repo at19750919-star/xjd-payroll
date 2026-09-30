@@ -1,4 +1,4 @@
-﻿# CLAUDE.md
+# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -18,9 +18,9 @@ Spreadsheet ID (hardcoded in both `index.html` and `payroll.py`): `13f8OR_e4B4vT
 
 ## Live window + history
 
-`index.html` only "activates" the most recent `LIVE_WINDOW` (= 2) week tabs — those fetch **that tab's** xlsx via `sheet_gids.json` + `export?format=xlsx&gid=` (not the whole workbook, not Apps Script `week`). Every older tab is read-only from `history.json` via `getWeekData(tab)`; if a tab isn't live and isn't in `history.json`, it errors instead of silently hitting the workbook. `isLiveTab(tab)` decides live vs. archived from `TABS`' sorted position. Every code path that used to load week data (`selectWeek`, `carryLoansForward`, `openLoanHistory`/`buildLoanLedger`, `openAtCardHistory`/`buildAtCardHistory`) goes through `getWeekData`, not `loadWeekData`/`WEEK_CACHE` directly.
+`index.html` only "activates" the most recent `LIVE_WINDOW` (= 2) week tabs — those fetch **that tab's** xlsx via `op=tabs` API 回傳之 `gids`（或備援的 `sheet_gids.json`）+ `export?format=xlsx&gid=` (not the whole workbook, not Apps Script `week`). Every older tab is read-only from `history.json` via `getWeekData(tab)`; if a tab isn't live and isn't in `history.json`, it errors instead of silently hitting the workbook. `isLiveTab(tab)` decides live vs. archived from `TABS`' sorted position. Every code path that used to load week data (`selectWeek`, `carryLoansForward`, `openLoanHistory`/`buildLoanLedger`, `openAtCardHistory`/`buildAtCardHistory`) goes through `getWeekData`, not `loadWeekData`/`WEEK_CACHE` directly.
 
-To re-freeze after a week rolls out of the live window: `node scripts/freeze_history.mjs`. It re-derives `API_URL`/`API_SECRET`/`SHEET_ID`/`LIVE_WINDOW` straight from `index.html`, overwrites `history.json` and `sheet_gids.json` (gid map for live-tab single-sheet export). Safe to re-run any time. It prints which tabs got frozen and which stayed live.
+新週在 Google 試算表新增後，Apps Script `tabs` API 會自動回傳該分頁的 `gid`，網頁端能直接動態開新週，無須每週手動跑部署。若要將滾出活週範圍的舊週凍結進歷史快照加速，再跑：`node scripts/freeze_history.mjs`。它會重新覆寫 `history.json` 與 `sheet_gids.json`。
 
 ## Key conventions and gotchas
 
