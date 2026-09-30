@@ -815,6 +815,10 @@ table.hist td.zero{color:var(--txt-dim)}
 
   async function listTabs() {
     const j = await apiGet("tabs");
+    if (j.gids && typeof j.gids === "object") {
+      if (!SHEET_GIDS) SHEET_GIDS = {};
+      Object.assign(SHEET_GIDS, j.gids);
+    }
     // API 回傳的是新到舊,但這裡到處都假設「左到右 = 舊到新」:
     // 開頁面要選 TABS[last]、借支承接要抓 TABS[index-1] 當上一週。所以自己排一次。
     return (j.tabs || []).slice().sort((a, b) => String(a).localeCompare(String(b)));
@@ -833,9 +837,10 @@ table.hist td.zero{color:var(--txt-dim)}
     try {
       const res = await fetch("sheet_gids.json", { cache: "no-store" });
       if (!res.ok) throw new Error(`sheet_gids.json 讀取失敗(${res.status})`);
-      SHEET_GIDS = await res.json();
+      const remote = await res.json();
+      SHEET_GIDS = Object.assign({}, remote, SHEET_GIDS || {});
     } catch {
-      SHEET_GIDS = {};
+      if (!SHEET_GIDS) SHEET_GIDS = {};
     }
   }
   function inferTabs() {
