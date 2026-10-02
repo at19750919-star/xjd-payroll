@@ -1322,6 +1322,41 @@ table.hist td.zero{color:var(--txt-dim)}
     if (!mmdd || !current) return false;
     return Number(current) >= Number(mmdd);
   }
+  function findSoloBonusDay(data) {
+    // CONFIG 層級規則(同 isInternBonusIncluded,不走 cfg/saved)。
+    // 回傳本週落在 獨立分配日 的那一天 { 日期, idx, 分配 },沒有就 null。
+    const map = (CONFIG && CONFIG.獨立分配日) || {};
+    const rows = (data && data.每日營運) || [];
+    const tab = String((data && data.tab) || "").replace(/\D/g, "");
+    for (const key of Object.keys(map)) {
+      const m = String(key).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!m) continue;
+      const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+      const monday = new Date(d);
+      monday.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+      const mondayKey = String(monday.getUTCMonth() + 1).padStart(2, "0") + String(monday.getUTCDate()).padStart(2, "0");
+      if (tab !== mondayKey) continue;
+      const md = `${Number(m[2])}/${Number(m[3])}`;
+      const idx = rows.findIndex((row) => row && row.date === md);
+      if (idx < 0) continue;
+      return { 日期: key, idx, 分配: map[key] || {} };
+    }
+    return null;
+  }
+  function soloShareOf(solo, name) {
+    if (!solo) return 0;
+    const key = Object.keys(solo.分配).find((k) => normalizedName(k) === normalizedName(name));
+    return key ? Number(solo.分配[key]) || 0 : 0;
+  }
+  function soloDayLabel(s) {
+    const m = String((s && s.獨立分配日) || "").match(/^\d{4}-(\d{2})-(\d{2})$/);
+    return m ? `${Number(m[1])}/${Number(m[2])} ` : "";
+  }
+  function soloBonusTitle(s) {
+    if (!s || !s.獨立分配日) return "";
+    const parts = Object.entries(s.獨立分配 || {}).map(([k, v]) => `${k} ${pctExact(v)}`).join("、");
+    return ` title="${escapeAttr(`${soloDayLabel(s)}獨立分配:當日營業額 ${money(s.獨立日營業額)} × ${pctExact(s.config.獎金率)} = ${money(s.獨立日獎金池)}(${parts});其他日池 ${money(s.其他日獎金池)} 依扣掉當日的時數比例分(分母 ${s.獎金分母})`)}"`;
+  }
   function money(n) {
     if (n == null || Number.isNaN(n)) return "算法未定";
     return (n < 0 ? "−" : "") + Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 0 });
@@ -1389,12 +1424,31 @@ table.hist td.zero{color:var(--txt-dim)}
     const 納入分獎金時數 = (data.實習 || [])
       .filter((p) => isInternBonusIncluded(data.tab, p.名字))
       .reduce((s, p) => s + p.時數, 0);
-    const 獎金分母 = 正式總時數 + 納入分獎金時數;
+    const 全週獎金分母 = 正式總時數 + 納入分獎金時數;
+    // 獨立分配日:當日池照固定比例分,其餘日子的池照「扣掉當日時數」的時數比例分
+    const solo = findSoloBonusDay(data);
+    const soloHours = (p) => {
+      if (!solo) return 0;
+      const n = Number(p.每日時數 && p.每日時數[solo.idx]);
+      return Number.isFinite(n) ? n : 0;
+    };
+    const 分獎金時數 = (p) => p.時數 - soloHours(p);
+    const 獨立日營業額 = solo ? (() => {
+      const row = (data.每日營運 || [])[solo.idx] || {};
+      return pyRound(-(Number(row.勝負原值) || 0)) - pyRound((Number(row.洗碼量) || 0) * cfg.退水每點);
+    })() : 0;
+    const 獨立日獎金池 = 獨立日營業額 * cfg.獎金率;
+    const 分時數獎金池 = 獎金池 - 獨立日獎金池;
+    const 獎金分母 = solo
+      ? data.正式.reduce((s, p) => s + 分獎金時數(p), 0)
+        + (data.實習 || []).filter((p) => isInternBonusIncluded(data.tab, p.名字)).reduce((s, p) => s + 分獎金時數(p), 0)
+      : 全週獎金分母;
     const 正式 = data.正式.map((p) => {
-      const 比例 = 用固定 ? (固定[p.名字] || 0) : (獎金分母 ? p.時數 / 獎金分母 : 0);
+      const 比例 = 用固定 ? (固定[p.名字] || 0) : (獎金分母 ? 分獎金時數(p) / 獎金分母 : 0);
+      const 獨立日比例 = soloShareOf(solo, p.名字);
       const 時薪金額 = pyRound(p.時數 * cfg.時薪);
-      const 獎金 = pyRound(獎金池 * 比例);
-      return applyLoan(withOther({ ...p, 比例, 時薪金額, 獎金, 合計: 時薪金額 + 獎金 }), 借支);
+      const 獎金 = pyRound(分時數獎金池 * 比例 + 獨立日獎金池 * 獨立日比例);
+      return applyLoan(withOther({ ...p, 比例, 獨立日比例, 時薪金額, 獎金, 合計: 時薪金額 + 獎金 }), 借支);
     });
     const 實習 = (data.實習 || []).map((p) => {
       const adminName = normalizedName(p.名字);
@@ -1426,10 +1480,13 @@ table.hist td.zero{color:var(--txt-dim)}
       }
       const 時薪金額 = pyRound(p.時數 * 用時薪);
       const 納入分獎金 = isInternBonusIncluded(data.tab, p.名字);
-      const 比例 = 納入分獎金 && 獎金分母 ? p.時數 / 獎金分母 : null;
-      const 獎金 = 納入分獎金 ? pyRound(獎金池 * (比例 || 0)) : 0;
+      const 比例 = 納入分獎金 && 獎金分母 ? 分獎金時數(p) / 獎金分母 : null;
+      const 獨立日比例 = soloShareOf(solo, p.名字);
+      const 獎金 = 納入分獎金 || 獨立日比例
+        ? pyRound(分時數獎金池 * (比例 || 0) + 獨立日獎金池 * 獨立日比例)
+        : 0;
       return applyLoan(withOther({
-        ...p, 用時薪, 時薪金額, 獎金, 比例,
+        ...p, 用時薪, 時薪金額, 獎金, 比例, 獨立日比例,
         納入正式分獎金: 納入分獎金,
         合計: 時薪金額 + 獎金,
       }), 借支);
@@ -1463,6 +1520,11 @@ table.hist td.zero{color:var(--txt-dim)}
       總勝負, 總退水, 總營業額,
       正式, 正式總時數,
       獎金分母, 納入分獎金時數,
+      獨立分配日: solo ? solo.日期 : null,
+      獨立分配: solo ? solo.分配 : null,
+      獨立日營業額,
+      獨立日獎金池: pyRound(獨立日獎金池),
+      其他日獎金池: pyRound(分時數獎金池),
       正式時薪小計: 正式.reduce((s, p) => s + p.時薪金額, 0),
       正式獎金小計: 正式.reduce((s, p) => s + p.獎金, 0),
       正式應發小計: 正式.reduce((s, p) => s + p.合計, 0),
@@ -1642,7 +1704,7 @@ table.hist td.zero{color:var(--txt-dim)}
             <th class="day-col">五</th><th class="day-col">六</th><th class="day-col">日</th>
             <th>時數</th><th>比例</th>
             <th>時薪<button type="button" class="adj" data-edit="wage">(${s.config.時薪})</button></th>
-            <th>獎金<button type="button" class="adj" data-edit="bonus">(${(s.config.獎金率 * 100).toFixed(0)}%)</button></th>
+            <th${soloBonusTitle(s)}>獎金<button type="button" class="adj" data-edit="bonus">(${(s.config.獎金率 * 100).toFixed(0)}%)</button></th>
             <th>合計</th><th>還款</th><th>其他</th><th>實發</th><th>總欠款</th>
           </tr>
         </thead>
@@ -1667,7 +1729,7 @@ table.hist td.zero{color:var(--txt-dim)}
             <td>${s.正式總時數.toFixed(1)}</td>
             <td></td>
             <td>${money(s.正式時薪小計)}</td>
-            <td>${money(s.正式獎金小計)}</td>
+            <td${soloBonusTitle(s)}>${money(s.正式獎金小計)}${s.獨立分配日 ? `<span class="intern-bonus-note">${soloDayLabel(s)}獨立池 ${money(s.獨立日獎金池)}・其他日池 ${money(s.其他日獎金池)}</span>` : ""}</td>
             <td>${money(s.正式應發小計)}</td>
             <td>${s.還款小計 ? money(s.正式.reduce((a, p) => a + p.還款, 0)) : ""}</td>
             <td>${(() => { const t = s.正式.reduce((a, p) => a + (p.其他金額 || 0), 0); return t ? money(t) : ""; })()}</td>
@@ -1689,7 +1751,7 @@ table.hist td.zero{color:var(--txt-dim)}
               <td>${p.虛擬 ? `<button type="button" class="adj" data-edit="hours" data-who="${p.名字}">${p.時數.toFixed(1)}</button>` : p.時數.toFixed(1)}</td>
               <td>${p.納入正式分獎金 ? pct(p.比例) : ""}</td>
               <td>${money(p.時薪金額)}</td>
-              <td>${p.納入正式分獎金 ? `${money(p.獎金)}<span class="intern-bonus-note">納入正式分獎金</span>` : ""}</td>
+              <td>${p.納入正式分獎金 ? `${money(p.獎金)}<span class="intern-bonus-note">納入正式分獎金</span>` : p.獎金 ? `${money(p.獎金)}<span class="intern-bonus-note">${soloDayLabel(s)}獨立分配</span>` : ""}</td>
               <td>${p.合計 == null ? "" : money(p.合計)}</td>
               <td>${renderRepaymentCell(p)}</td>
               <td>${renderOtherCell(p)}</td>

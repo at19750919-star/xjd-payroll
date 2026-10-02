@@ -143,6 +143,8 @@ function loadCompute() {
     fnSrc("pyRound"),
     fnSrc("internWageChargedToCompany"),
     fnSrc("isInternBonusIncluded"),
+    fnSrc("findSoloBonusDay"),
+    fnSrc("soloShareOf"),
     fnSrc("internWageForCfg"),
     fnSrc("calculateAtCardBonus"),
     fnSrc("applyLoan"),
@@ -155,6 +157,7 @@ function loadCompute() {
       實習: { 向公司收起始週: "0817" },
       行政: { AT補牌單價: 300 },
       納入正式分獎金自: { "Vicky(V)": "2026-09-21" },
+      獨立分配日: { "2026-09-30": { "小安(報班專用)": 0.4, "溜(xiao)": 0.4, "Vicky(V)": 0.1, "寶(²)": 0.1 } },
     },
   };
   vm.runInNewContext(src, context);
@@ -236,3 +239,55 @@ test("Vicky 時薪仍是實習預設 325，寶(²) 仍是 187.5，不受分獎�
   assert.equal(bao.用時薪, 187.5);
 });
 
+
+// 0928 週實際資料(試算表 0928 分頁):9/30 獨立分配,其他天照時數比例
+function data0928() {
+  const days = ["9/28", "9/29", "9/30", "10/1", "10/2", "10/3", "10/4"];
+  const ops = [[-550700, 293], [0, 0], [-9682500, 3428], [820300, 826], [0, 0], [0, 0], [0, 0]];
+  const h = (arr) => ({ 每日時數: arr, 時數: arr.reduce((a, v) => a + (v || 0), 0) });
+  return {
+    tab: "0928",
+    勝負合計: -9412900,
+    洗碼合計: 4547,
+    正式: [
+      { 名字: "布(laire)", ...h([8, null, null, 4.5, null, null, null]) },
+      { 名字: "瑄", ...h([null, null, null, null, null, null, null]) },
+      { 名字: "溜(xiao)", ...h([8, null, 7, 4.5, null, null, null]) },
+      { 名字: "小安(報班專用)", ...h([null, null, 7, null, null, null, null]) },
+    ],
+    實習: [
+      { 名字: "寶(²)", ...h([8, null, 10.5, null, null, null, null]) },
+      { 名字: "Vicky(V)", ...h([7, null, 7, null, null, null, null]) },
+    ],
+    每日營運: days.map((date, i) => ({ day: "", date, 勝負原值: ops[i][0], 洗碼量: ops[i][1], 筆數: ops[i][0] || ops[i][1] ? 1 : 0 })),
+  };
+}
+
+test("0928 週:9/30 獨立分配(小安40/溜40/V10/寶10),其他天扣掉 9/30 時數照比例", () => {
+  const compute = loadCompute();
+  const r = compute(baseCfg(), data0928());
+  assert.equal(r.總營業額, 8503500);
+  assert.equal(r.獨立分配日, "2026-09-30");
+  assert.equal(r.獨立日營業額, 8996900);
+  assert.equal(r.獨立日獎金池, 179938);
+  assert.equal(r.其他日獎金池, -9868);
+  assert.equal(r.獎金分母, 32);
+  const all = r.正式.concat(r.實習);
+  const bonus = (n) => all.find((p) => p.名字 === n).獎金;
+  assert.equal(bonus("布(laire)"), -3855);
+  assert.equal(bonus("瑄"), 0);
+  assert.equal(bonus("溜(xiao)"), 68121);
+  assert.equal(bonus("小安(報班專用)"), 71975);
+  assert.equal(bonus("Vicky(V)"), 15835);
+  assert.equal(bonus("寶(²)"), 17994);
+  // 時薪照常含 9/30 時數
+  assert.equal(all.find((p) => p.名字 === "小安(報班專用)").時薪金額, 7 * 650);
+  assert.equal(all.find((p) => p.名字 === "寶(²)").時薪金額, Math.round(18.5 * 187.5));
+});
+
+test("沒有獨立分配日的週(0921)計算不變", () => {
+  const compute = loadCompute();
+  const r = compute(baseCfg(), baseData("0921"));
+  assert.equal(r.獨立分配日, null);
+  assert.equal(r.獨立日獎金池, 0);
+});
