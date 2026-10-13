@@ -1594,24 +1594,39 @@ table.hist td.zero{color:var(--txt-dim)}
       const tag = archived ? `<span class="archived-tag">封存</span>` : "";
       return `<button type="button" class="${cls}" data-tab="${t}">${t}${tag}</button>`;
     };
-    const august = TABS.filter((t) => t.startsWith("08"));
-    let monthAdded = false;
+    MONTH_MENUS = {};
+    for (const m of Object.keys(MONTH_GROUPS)) {
+      MONTH_MENUS[m] = `<div class="month-menu-inner">${TABS.filter((t) => t.startsWith(m)).map(weekButton).join("")}</div>`;
+    }
+    const monthAdded = {};
     const buttons = TABS.map((t) => {
-      if (!t.startsWith("08")) return weekButton(t);
-      if (monthAdded) return "";
-      monthAdded = true;
-      return `<button type="button" class="${august.includes(current) ? "on" : ""}" data-month="08" aria-expanded="false" aria-controls="august-tabs">8月</button>`;
+      const m = t.slice(0, 2);
+      if (!MONTH_GROUPS[m]) return weekButton(t);
+      if (monthAdded[m]) return "";
+      monthAdded[m] = true;
+      const on = TABS.some((x) => x.startsWith(m) && x === current);
+      return `<button type="button" class="${on ? "on" : ""}" data-month="${m}" aria-expanded="false" aria-controls="august-tabs">${MONTH_GROUPS[m]}</button>`;
     }).join("");
     $("tabs-scroll").innerHTML = buttons;
-    $("august-tabs").innerHTML = `<div class="month-menu-inner">${august.map(weekButton).join("")}</div>`;
+    $("august-tabs").innerHTML = "";
     hideMonthTabs();
     scrollTabIntoView();
   }
 
-  function showMonthTabs() {
-    const nav = $("tabs"), trigger = nav.querySelector("button[data-month]");
+  // 合併成月份按鈕的週（點開看該月各週）；共用同一個 #august-tabs 選單
+  var MONTH_GROUPS = { "08": "8月", "09": "9月" };
+  var MONTH_MENUS = {};
+  function showMonthTabs(btn) {
+    const nav = $("tabs");
+    const trigger = (btn && btn.closest && btn.closest("button[data-month]")) || nav.querySelector('button[data-month][aria-expanded="true"]');
     if (!trigger) return;
     const menu = $("august-tabs");
+    if (menu.dataset.month !== trigger.dataset.month || menu.hidden) {
+      nav.querySelectorAll("button[data-month]").forEach((b) => b.setAttribute("aria-expanded", "false"));
+      menu.innerHTML = MONTH_MENUS[trigger.dataset.month] || "";
+      menu.dataset.month = trigger.dataset.month;
+      menu.setAttribute("aria-label", `${MONTH_GROUPS[trigger.dataset.month] || ""}分頁`);
+    }
     menu.hidden = false;
     trigger.setAttribute("aria-expanded", "true");
     // 菜單放在捲動容器外,避免被裁掉；座標換回 fit 模式縮放前的尺寸。
@@ -1623,7 +1638,7 @@ table.hist td.zero{color:var(--txt-dim)}
 
   function hideMonthTabs() {
     $("august-tabs").hidden = true;
-    $("tabs").querySelector("button[data-month]")?.setAttribute("aria-expanded", "false");
+    $("tabs").querySelectorAll("button[data-month]").forEach((b) => b.setAttribute("aria-expanded", "false"));
   }
 
   // 捲軸藏起來了,所以選到的那週要自己捲進來,並在捲到最左時關掉淡出遮罩
@@ -2496,12 +2511,12 @@ table.hist td.zero{color:var(--txt-dim)}
   });
 
   $("tabs").addEventListener("pointerover", (e) => {
-    if (e.target.closest("button[data-month]")) showMonthTabs();
+    if (e.target.closest("button[data-month]")) showMonthTabs(e.target);
     else if (e.target.closest("#tabs-scroll")) hideMonthTabs();
   });
   $("tabs").addEventListener("pointerleave", hideMonthTabs);
   $("tabs").addEventListener("focusin", (e) => {
-    if (e.target.closest("button[data-month]")) showMonthTabs();
+    if (e.target.closest("button[data-month]")) showMonthTabs(e.target);
     else if (e.target.closest("#tabs-scroll")) hideMonthTabs();
   });
   $("tabs").addEventListener("focusout", (e) => {
@@ -2509,7 +2524,7 @@ table.hist td.zero{color:var(--txt-dim)}
   });
   $("tabs").addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
-      $("tabs").querySelector("button[data-month]")?.focus();
+      ($("tabs").querySelector('button[data-month][aria-expanded="true"]') || $("tabs").querySelector("button[data-month]"))?.focus();
       hideMonthTabs();
     }
   });
@@ -2551,7 +2566,7 @@ table.hist td.zero{color:var(--txt-dim)}
 
   $("tabs").addEventListener("click", (e) => {
     if (e.target.closest("button[data-month]")) {
-      showMonthTabs();
+      showMonthTabs(e.target);
       return;
     }
     const b = e.target.closest("button[data-tab]");
