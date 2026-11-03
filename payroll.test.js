@@ -102,10 +102,10 @@ test("loadWeekData 不再打 week API", () => {
 });
 
 
-test("實習預設時薪 325，寶(²) 個別時薪 187.5", () => {
+test("實習預設時薪 325，寶(²) 個別時薪 325", () => {
   const cfgSrc = fs.readFileSync("payroll_config.js", "utf8");
   assert.match(cfgSrc, /"時薪":\s*325/);
-  assert.match(cfgSrc, /"個別時薪":\s*\{\s*"寶\(²\)":\s*187\.5\s*\}/);
+  assert.match(cfgSrc, /"個別時薪":\s*\{\s*"寶\(²\)":\s*325\s*\}/);
   assert.match(html, /function internWageFor\(/);
   assert.doesNotMatch(html, /data-edit="internPersonWage"/);
   assert.match(html, /id="loan-wage-block"/);
