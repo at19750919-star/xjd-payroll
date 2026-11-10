@@ -1594,12 +1594,14 @@ table.hist td.zero{color:var(--txt-dim)}
       const tag = archived ? `<span class="archived-tag">封存</span>` : "";
       return `<button type="button" class="${cls}" data-tab="${t}">${t}${tag}</button>`;
     };
+    // 最新的週排最左邊（TABS 本身保持由舊到新，只反轉顯示順序）
+    const shown = TABS.slice().reverse();
     MONTH_MENUS = {};
     for (const m of Object.keys(MONTH_GROUPS)) {
-      MONTH_MENUS[m] = `<div class="month-menu-inner">${TABS.filter((t) => t.startsWith(m)).map(weekButton).join("")}</div>`;
+      MONTH_MENUS[m] = `<div class="month-menu-inner">${shown.filter((t) => t.startsWith(m)).map(weekButton).join("")}</div>`;
     }
     const monthAdded = {};
-    const buttons = TABS.map((t) => {
+    const buttons = shown.map((t) => {
       const m = t.slice(0, 2);
       if (!MONTH_GROUPS[m]) return weekButton(t);
       if (monthAdded[m]) return "";
@@ -1644,7 +1646,7 @@ table.hist td.zero{color:var(--txt-dim)}
   // 捲軸藏起來了,所以選到的那週要自己捲進來,並在捲到最左時關掉淡出遮罩
   function scrollTabIntoView() {
     const box = $("tabs-scroll");
-    const on = box.querySelector("button.on") || box.lastElementChild;
+    const on = box.querySelector("button.on") || box.firstElementChild;
     if (!on) return;
     requestAnimationFrame(() => {
       const r = on.getBoundingClientRect(), br = box.getBoundingClientRect();
